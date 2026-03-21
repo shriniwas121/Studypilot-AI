@@ -584,8 +584,8 @@ export default function Home() {
 
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-900">
-      <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-100 text-slate-900">
+      <aside className="aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white overflow-hidden">">
         
 		<div className="border-b border-slate-200 px-5 py-5">
           <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
@@ -815,7 +815,7 @@ export default function Home() {
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex w-full min-w-0 flex-1 flex-col overflow-hidden">
         <div className="border-b border-slate-200 bg-white px-8 py-5">
           <h2 className="text-xl font-semibold">{fileName || "Select or upload a file"}</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -823,9 +823,9 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="flex flex-1 min-h-0 p-6 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
 
-          <section className="flex flex-col w-full mx-auto rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <section className="flex flex-col w-full max-w-5xl mx-auto rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Chat with content</h3>
@@ -895,7 +895,7 @@ export default function Home() {
                         )}
                 
                         {/* Message + Source */}
-                        <div className="flex flex-col max-w-[75%]">
+                        <div className="flex flex-col max-w-full md:max-w-[75%]">
                           <div
                             className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
                               msg.role === "user"
@@ -1028,7 +1028,7 @@ export default function Home() {
 
               </div>
               <div className="mt-4 shrink-0">
-                <div className="flex gap-3">
+                <div className="flex flex-col md:flex-row gap-3">
                 <input
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}

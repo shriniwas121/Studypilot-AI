@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${mono.variable} antialiased`}
+        className={`${inter.variable} ${mono.variable} antialiased overflow-x-hidden`}
       >
         {children}
       </body>
