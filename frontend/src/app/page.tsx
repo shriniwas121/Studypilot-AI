@@ -1057,7 +1057,6 @@ export default function Home() {
                   {/* INPUT */}
                   <input
                     value={question}
-                    onClick={() => setShowActions(false)}
                     onChange={(e) => setQuestion(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
