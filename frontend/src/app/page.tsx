@@ -605,9 +605,6 @@ export default function Home() {
     }, []);
 
 
-
-
-
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, []);
@@ -622,7 +619,7 @@ export default function Home() {
         <div
           className="fixed inset-0 bg-black/30 z-40 md:hidden"
           onClick={() => setShowSidebar(false)}
-        />
+        </div>
       )}
   
       {/* ✅ SIDEBAR */}
