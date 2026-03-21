@@ -495,28 +495,7 @@ export default function Home() {
     if (savedLibrary) {
       const parsedLibrary: LibraryItem[] = JSON.parse(savedLibrary);
       setLibrary(parsedLibrary);
-  
-      if (savedActiveId) {
-        const activeItem = parsedLibrary.find((item) => item.id === savedActiveId);
-  
-        if (activeItem) {
-          setActiveId(activeItem.id);
-          setFileName(activeItem.name);
-          setSummary(activeItem.summary);
-          setDocumentText(activeItem.documentText);
-  
-          const lastUser = activeItem.chatHistory
-            .filter((m) => m.role === "user")
-            .slice(-1)[0];
-  
-          const lastAssistant = activeItem.chatHistory
-            .filter((m) => m.role === "assistant")
-            .slice(-1)[0];
-  
-          setQuestion("");
-          setAnswer(lastAssistant?.content || "");
-        }
-      }
+
     }
   }, []);
 
@@ -612,6 +591,23 @@ export default function Home() {
       }
     };
   
+
+    useEffect(() => {
+      const handleClickOutside = () => {
+        setShowActions(false);
+      };
+    
+      window.addEventListener("click", handleClickOutside);
+    
+      return () => {
+        window.removeEventListener("click", handleClickOutside);
+      };
+    }, []);
+
+
+
+
+
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, []);
@@ -727,7 +723,7 @@ export default function Home() {
 
         <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
 
-          <section className="flex flex-col w-full max-w-5xl mx-auto rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <section className="flex flex-col w-full h-full rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Chat with content</h3>
@@ -770,12 +766,29 @@ export default function Home() {
                 >
                   Clear chat
                 </button>
+
+                <button
+                  onClick={() => {
+                    setActiveId("");
+                    setFileName("");
+                    setSummary("");
+                    setDocumentText("");
+                    setQuestion("");
+                    setAnswer("");
+                    setStreamingText("");
+                  }}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+                >
+                  New chat
+                </button>
+
+
               </div>
             </div>
 
             <div className="flex flex-1 flex-col min-h-0">
 
-              <div className="flex-1 min-h-[400px] md:min-h-[500px] overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <div className="flex-1 h-full min-h-0 overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
 
                 <div className="space-y-4">
                 
@@ -936,7 +949,7 @@ export default function Home() {
                   {/* ➕ BUTTON */}
 
                   <button
-                    onClick={() => setShowActions((prev) => !prev)}
+                    onClick={(e) => e.stopPropagation(); // VERY IMPORTANT setShowActions((prev) => !prev)}
                     className="h-12 w-12 rounded-xl border text-lg shrink-0"
                   >
                     +
@@ -944,7 +957,7 @@ export default function Home() {
 
                   {showActions && (
 
-                    <div className="absolute top-[-160px] left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
+                    <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
                   
                       <label className="block cursor-pointer text-sm border p-2 rounded">
                         Upload file
@@ -1007,6 +1020,7 @@ export default function Home() {
                   {/* INPUT */}
                   <input
                     value={question}
+                    onClick={() => setShowActions(false)}
                     onChange={(e) => setQuestion(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
