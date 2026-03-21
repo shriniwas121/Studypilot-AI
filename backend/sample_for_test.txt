@@ -1,0 +1,3 @@
+IFRS9 reconciliation checks are performed after staging and transformation.
+These checks ensure balances and record counts match before reporting.
+Exceptions are reviewed before downstream jobs continue.

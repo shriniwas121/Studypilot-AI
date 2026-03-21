@@ -1,0 +1,1117 @@
+"use client";
+import { useEffect, useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  sourceType?: "document" | "external" | "none";
+};
+
+
+type LibraryItem = {
+  id: string;
+  name: string;
+  type: "PDF" | "TXT" | "SAS" | "VIDEO" | "WEB";
+  status: "Ready" | "Analyzed";
+  summary: string;
+  documentText: string;
+  chatHistory: ChatMessage[];
+};
+
+
+export default function Home() {
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioObj, setAudioObj] = useState<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("english");
+  const [streamingText, setStreamingText] = useState("");
+  const [summary, setSummary] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [documentText, setDocumentText] = useState("");
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAsking, setIsAsking] = useState(false);
+  const [library, setLibrary] = useState<LibraryItem[]>([]);  
+  const [activeId, setActiveId] = useState<string>("");
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [chatAudio, setChatAudio] = useState<HTMLAudioElement | null>(null);
+  const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [pastedText, setPastedText] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+
+
+  const getSafeData = (data: any, fallbackText = "") => {
+    const safeSummary =
+      data.summary || data.document_text || data.text || fallbackText || "No summary available";
+  
+    const safeText =
+      data.document_text || data.text || fallbackText || "";
+  
+    return { safeSummary, safeText };
+  };
+
+
+  const handleAsk = async () => {
+    try {
+      if (!question || !documentText || isAsking) return;
+  
+      setIsAsking(true);
+  
+      const userQuestion = question;
+  
+      const activeItem = library.find((item) => item.id === activeId);
+  
+      const chatHistoryText =
+        activeItem?.chatHistory
+          ?.map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+          .join("\n") || "";
+  
+      const formData = new FormData();
+      formData.append("question", userQuestion);
+      formData.append("document_text", documentText);
+      formData.append("chat_history", chatHistoryText);
+  
+
+      console.log("Sending request...");
+      const res = await fetch("http://127.0.0.1:8000/ask", {
+        method: "POST",
+        headers: {
+          "x-api-key": "insightxai-10821",
+        },
+        body: formData,
+      });
+
+      console.log("Response status:", res.status);
+
+  
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
+  
+      const data = await res.json();
+  
+      const fullText = data.answer;
+      const sourceType = data.source_type || "none";
+  
+      // ✅ RESET BEFORE START
+      setStreamingText("");
+  
+      let i = 0;
+  
+      const interval = setInterval(() => {
+        setStreamingText((prev) => prev + fullText[i]);
+        i++;
+  
+        if (i >= fullText.length) {
+          clearInterval(interval);
+  
+          // ✅ SAVE FINAL MESSAGE
+          setLibrary((prev) =>
+            prev.map((item) =>
+              item.id === activeId
+                ? {
+                    ...item,
+                    chatHistory: [
+                      ...item.chatHistory,
+                      { role: "user", content: userQuestion },
+                      {
+                        role: "assistant",
+                        content: fullText,
+                        sourceType: sourceType,
+                      },
+                    ],
+                  }
+                : item
+            )
+          );
+  
+          // ✅ CRITICAL FIX (THIS WAS MISSING)
+          setStreamingText("");
+        }
+      }, 15);
+  
+      setQuestion("");
+    } catch (err) {
+      console.error(err);
+      setAnswer("Question failed. Check backend terminal.");
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const handleUrlAnalyze = async () => {
+    try {
+      if (!urlInput.trim()) return;
+  
+      setIsUploading(true);
+      setAnswer("");
+      setQuestion("");
+  
+      const formData = new FormData();
+  
+      let endpoint = "";
+      let type: LibraryItem["type"] = "WEB";
+  
+      if (urlInput.includes("youtube.com") || urlInput.includes("youtu.be")) {
+        formData.append("video_url", urlInput);
+        endpoint = "http://127.0.0.1:8000/summarize-video";
+        type = "VIDEO";
+      } else {
+        formData.append("website_url", urlInput);
+        endpoint = "http://127.0.0.1:8000/summarize-website";
+        type = "WEB";
+      }
+  
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+  
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
+  
+      const data = await res.json();
+  
+      // ✅ IMPORTANT (keep UI synced)
+
+      const safeSummary =
+        data.summary || data.document_text || data.text || "No summary available";
+      
+      const safeText =
+        data.document_text || data.text || "";
+      
+      setSummary(safeSummary);
+      setFileName(data.filename || urlInput);
+      setDocumentText(safeText);
+
+
+
+      const newItem: LibraryItem = {
+        id: crypto.randomUUID(),
+        name: urlInput,
+        type,
+        status: "Analyzed",
+        summary: safeSummary,
+        documentText: safeText,
+
+        chatHistory: [
+          {
+            role: "assistant",
+            content: `Here’s a quick overview:\n\n${data.summary || data.text}`,
+            sourceType: "document",
+          },
+        ],
+      };
+  
+      setLibrary((prev) => [newItem, ...prev]);
+      setActiveId(newItem.id);
+      setUrlInput("");
+  
+    } catch (err) {
+      console.error(err);
+      setSummary("URL analysis failed. Check backend terminal.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePasteAnalyze = async () => {
+    try {
+      if (!pastedText.trim()) return;
+  
+      setIsUploading(true);
+  
+      const formData = new FormData();
+      formData.append("text", pastedText);
+  
+      const res = await fetch("http://127.0.0.1:8000/summarize-text", {
+        method: "POST",
+        body: formData,
+      });
+
+
+      const data = await res.json();
+      
+      console.log("API DATA:", data); // 👈 ADD HERE
+      
+      const { safeSummary, safeText } = getSafeData(data, pastedText);
+      
+      setSummary(safeSummary);
+      setFileName("Pasted Content");
+      setDocumentText(safeText);
+      
+      const newItem: LibraryItem = {
+        id: crypto.randomUUID(),
+        name: "Pasted Content",
+        type: "TXT",
+        status: "Analyzed",
+        summary: safeSummary,
+        documentText: safeText,
+        chatHistory: [
+          {
+            role: "assistant",
+            content: `Here’s a quick overview:\n\n${safeSummary}`,
+            sourceType: "document",
+          },
+        ],
+      };  
+
+      setLibrary((prev) => [newItem, ...prev]);
+      setActiveId(newItem.id);
+      setPastedText("");
+  
+    } catch (err) {
+      console.error(err);
+      alert("Text analysis failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+
+  const handleCameraUpload = async (e: any) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+  
+      setIsUploading(true);
+  
+      const formData = new FormData();
+      formData.append("file", file);
+  
+      const res = await fetch("http://127.0.0.1:8000/ocr", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const data = await res.json();
+
+      const safeSummary =
+        data.summary || data.document_text || data.text || "⚠️ No readable text found. Try clearer image.";
+      
+      const safeText =
+        data.document_text || data.text || "No text found";
+      
+      setSummary(safeSummary);
+      setFileName("Captured Image");
+      setDocumentText(safeText);
+      
+      const newItem: LibraryItem = {
+        id: crypto.randomUUID(),
+        name: "Captured Image",
+        type: "TXT",
+        status: "Analyzed",
+        summary: safeSummary,
+        documentText: safeText,
+        chatHistory: [
+          {
+            role: "assistant",
+            content: `Extracted & summarized:\n\n${safeSummary}`,
+            sourceType: "document",
+          },
+        ],
+      };
+
+ 
+      setLibrary((prev) => [newItem, ...prev]);
+      setActiveId(newItem.id);
+  
+    } catch (err) {
+      console.error(err);
+      alert("Image processing failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRenameItem = (id: string) => {
+    const currentItem = library.find((item) => item.id === id);
+    if (!currentItem) return;
+  
+    const newName = window.prompt("Rename item", currentItem.name);
+    if (!newName || !newName.trim()) return;
+  
+    setLibrary((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, name: newName.trim() }
+          : item
+      )
+    );
+  
+    if (activeId === id) {
+      setFileName(newName.trim());
+    }
+  };
+  
+  const handleDeleteItem = (id: string) => {
+    const confirmDelete = window.confirm("Remove this item from the library?");
+    if (!confirmDelete) return;
+  
+    const remaining = library.filter((item) => item.id !== id);
+    setLibrary(remaining);
+  
+    if (activeId === id) {
+      if (remaining.length > 0) {
+        const nextItem = remaining[0];
+        setActiveId(nextItem.id);
+        setFileName(nextItem.name);
+        setSummary(nextItem.summary);
+        setDocumentText(nextItem.documentText);
+  
+        const lastAssistant = nextItem.chatHistory
+          .filter((m) => m.role === "assistant")
+          .slice(-1)[0];
+  
+        setQuestion("");
+        setAnswer(lastAssistant?.content || "");
+      } else {
+        setActiveId("");
+        setFileName("");
+        setSummary("");
+        setDocumentText("");
+        setQuestion("");
+        setAnswer("");
+        localStorage.removeItem("docpilot_active_id");
+      }
+    }
+  };
+
+
+  const handleClearChat = () => {
+    if (!activeId) return;
+  
+    const confirmClear = window.confirm("Clear chat for this item?");
+    if (!confirmClear) return;
+  
+    setLibrary((prev) =>
+      prev.map((item) =>
+        item.id === activeId
+          ? {
+              ...item,
+              chatHistory: [],
+            }
+          : item
+      )
+    );
+  
+    setQuestion("");
+    setAnswer("");
+  };
+
+  const handleCopySummary = async () => {
+    if (!summary) return;
+    await navigator.clipboard.writeText(summary);
+    alert("Summary copied.");
+  };
+  
+  const handleCopyChat = async () => {
+    const activeItem = library.find((item) => item.id === activeId);
+    if (!activeItem || activeItem.chatHistory.length === 0) return;
+  
+    const chatText = activeItem.chatHistory
+      .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+      .join("\n\n");
+  
+    await navigator.clipboard.writeText(chatText);
+    alert("Chat copied.");
+  };
+  
+  const handleDownloadTxt = () => {
+    const activeItem = library.find((item) => item.id === activeId);
+    if (!activeItem) return;
+  
+    const chatText =
+      activeItem.chatHistory.length > 0
+        ? activeItem.chatHistory
+            .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+            .join("\n\n")
+        : "No chat yet.";
+  
+    const content = `DocPilot AI Export
+  ====================
+  
+  Source:
+  ${activeItem.name}
+  
+  Type:
+  ${activeItem.type}
+  
+  Summary:
+  ${activeItem.summary || "No summary available."}
+  
+  Chat:
+  ${chatText}
+  `;
+  
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+  
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "docpilot-export.txt";
+    a.click();
+  
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    const savedLibrary = localStorage.getItem("docpilot_library");
+    const savedActiveId = localStorage.getItem("docpilot_active_id");
+
+    if (savedLibrary) {
+      const parsedLibrary: LibraryItem[] = JSON.parse(savedLibrary);
+      setLibrary(parsedLibrary);
+  
+      if (savedActiveId) {
+        const activeItem = parsedLibrary.find((item) => item.id === savedActiveId);
+  
+        if (activeItem) {
+          setActiveId(activeItem.id);
+          setFileName(activeItem.name);
+          setSummary(activeItem.summary);
+          setDocumentText(activeItem.documentText);
+  
+          const lastUser = activeItem.chatHistory
+            .filter((m) => m.role === "user")
+            .slice(-1)[0];
+  
+          const lastAssistant = activeItem.chatHistory
+            .filter((m) => m.role === "assistant")
+            .slice(-1)[0];
+  
+          setQuestion("");
+          setAnswer(lastAssistant?.content || "");
+        }
+      }
+    }
+  }, []);
+
+
+  useEffect(() => {
+    localStorage.setItem("docpilot_library", JSON.stringify(library));
+  }, [library]);
+
+
+  useEffect(() => {
+    if (activeId) {
+      localStorage.setItem("docpilot_active_id", activeId);
+    }
+  }, [activeId]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: streamingText ? "smooth" : "auto" });
+  }, [
+    streamingText,
+    library,     // ✅ when chatHistory updates
+    activeId     // ✅ when switching item (PDF / YouTube / Web)
+  ]);
+
+
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+  
+      for (const item of items) {
+        if (item.type.includes("image")) {
+          const blob = item.getAsFile();
+          if (!blob) continue;
+  
+          const formData = new FormData();
+          formData.append("file", blob);
+  
+          setIsUploading(true);
+  
+          try {
+            const res = await fetch("http://127.0.0.1:8000/ocr", {
+              method: "POST",
+              body: formData,
+            });
+  
+            const data = await res.json();
+  
+            const safeSummary =
+              data.summary || data.document_text || data.text || "⚠️ No readable text found. Try clearer image.";
+            
+            const safeText =
+              data.document_text || data.text || "No text found";
+            
+            setSummary(safeSummary);
+            setFileName("Screenshot");
+            setDocumentText(safeText);
+            
+            const newItem: LibraryItem = {
+              id: crypto.randomUUID(),
+              name: "Screenshot",
+              type: "TXT",
+              status: "Analyzed",
+              summary: safeSummary,
+              documentText: safeText,
+              chatHistory: [
+                {
+                  role: "assistant",
+                  content: `Extracted from screenshot:\n\n${safeSummary}`,
+                  sourceType: "document",
+                },
+              ],
+            };
+  
+            setLibrary((prev) => [newItem, ...prev]);
+            setActiveId(newItem.id);
+  
+          } catch (err) {
+            console.error(err);
+            alert("Screenshot failed");
+          } finally {
+            setIsUploading(false);
+          }
+        }
+      }
+    };
+  
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
+
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-900">
+      <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white overflow-hidden">
+        
+		<div className="border-b border-slate-200 px-5 py-5">
+          <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
+          <p className="mt-1 text-sm text-slate-500">AI-powered study assistant for documents, videos, and voice learning</p>
+        </div>
+
+        <div className="border-b border-slate-200 px-5 py-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Add content</p>
+
+          <label className="mb-3 block cursor-pointer rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            Upload file
+            <input
+              type="file"
+              className="hidden"
+              onChange={async (e) => {
+                try {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  setIsUploading(true);
+                  setAnswer("");
+                  setQuestion("");
+
+                  const formData = new FormData();
+                  formData.append("file", file);
+
+                  const res = await fetch("http://127.0.0.1:8000/summarize", {
+                    method: "POST",
+                    body: formData,
+                  });
+
+                  if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(errorText);
+                  }
+
+                  const data = await res.json();
+                  setSummary(data.summary);
+                  setFileName(data.filename);
+                  setDocumentText(data.document_text);
+                  setQuestion("");
+                  setAnswer("");
+
+                  const ext = data.filename.split(".").pop()?.toUpperCase();
+                  
+                  const safeType: LibraryItem["type"] =
+                    ext === "PDF" || ext === "TXT" || ext === "SAS"
+                      ? ext
+                      : "TXT";
+                  
+
+                  const newItem: LibraryItem = {
+                    id: crypto.randomUUID(),
+                    name: data.filename,
+                    type: safeType,
+                    status: "Analyzed",
+                    summary: data.summary || data.text,
+                    documentText: data.document_text || data.text,
+                    chatHistory: [
+                      {
+                        role: "assistant",
+                        content: `Here’s a quick overview of your document:\n\n${data.summary}`,
+                        sourceType: "document",
+                      },
+                    ],
+                  };
+
+                  setLibrary((prev) => [newItem, ...prev]);
+                  setActiveId(newItem.id);
+                } catch (err) {
+                  console.error(err);
+                  setSummary("Upload failed. Check backend terminal.");
+                } finally {
+                  setIsUploading(false);
+                }
+              }}
+            />
+          </label>
+
+
+          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+            <input
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              className="w-full bg-transparent text-sm outline-none"
+              placeholder="Paste YouTube or Website URL..."
+            />
+          
+            <button
+              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              onClick={handleUrlAnalyze}
+            >
+              Analyze
+            </button>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+            <textarea
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              className="w-full bg-transparent text-sm outline-none resize-none"
+              rows={3}
+              placeholder="Paste content OR screenshot..."
+            />
+          
+            <button
+              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              onClick={handlePasteAnalyze}
+            >
+              Analyze
+            </button>
+          
+            <p className="mt-2 text-xs text-slate-400">
+              Tip: Press Ctrl + V to paste screenshot directly
+            </p>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500 mb-2">Camera (mobile only)</p>
+          
+            <label className="block cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm text-center">
+              📷 Camera
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleCameraUpload}
+              />
+            </label>
+          </div>
+
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="mb-3 flex items-center justify-between px-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Library</p>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+              {library.length}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {library.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-2xl border transition ${
+                  activeId === item.id
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    setActiveId(item.id);
+                    setFileName(item.name);
+                    setSummary(item.summary);
+                    setDocumentText(item.documentText);
+            
+                    const lastUser = item.chatHistory
+                      .filter((m) => m.role === "user")
+                      .slice(-1)[0];
+            
+                    const lastAssistant = item.chatHistory
+                      .filter((m) => m.role === "assistant")
+                      .slice(-1)[0];
+            
+                    setQuestion(lastUser?.content || "");
+                    setAnswer(lastAssistant?.content || "");
+                  }}
+                  className="w-full px-3 pt-3 text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.name}</p>
+                      <p
+                        className={`mt-1 text-xs ${
+                          activeId === item.id ? "text-slate-300" : "text-slate-500"
+                        }`}
+                      >
+                        {item.type} • {item.status}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                        activeId === item.id
+                          ? "bg-white/10 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      Open
+                    </span>
+                  </div>
+                </button>
+            
+                <div
+                  className={`flex gap-2 px-3 pb-3 pt-2 ${
+                    activeId === item.id ? "text-white" : "text-slate-600"
+                  }`}
+                >
+                  <button
+                    onClick={() => handleRenameItem(item.id)}
+                    className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                      activeId === item.id
+                        ? "bg-white/10 hover:bg-white/20"
+                        : "bg-slate-100 hover:bg-slate-200"
+                    }`}
+                  >
+                    Rename
+                  </button>
+            
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                      activeId === item.id
+                        ? "bg-white/10 hover:bg-white/20"
+                        : "bg-slate-100 hover:bg-slate-200"
+                    }`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="border-b border-slate-200 bg-white px-8 py-5">
+          <h2 className="text-xl font-semibold">{fileName || "Select or upload a file"}</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Get a summary and ask grounded questions from the selected content.
+          </p>
+        </div>
+
+        <div className="flex flex-1 min-h-0 p-6 overflow-hidden">
+
+          <section className="flex flex-col w-full mx-auto rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold">Chat with content</h3>
+                <p className="text-sm text-slate-500">Grounded Q&A for the selected item</p>
+              </div>
+
+              {/* 🌍 LANGUAGE DROPDOWN */}
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className="rounded-xl border border-slate-300 px-2 py-2 text-xs"
+              >
+                <option value="english">English</option>
+                <option value="hindi">Hindi</option>
+                <option value="telugu">Telugu</option>
+                <option value="french">French</option>
+                <option value="german">German</option>
+              </select>
+
+
+
+
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                  Grounded Q&A
+                </span>
+              
+                <button
+                  onClick={handleCopyChat}
+                  disabled={!activeId}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Copy chat
+                </button>
+              
+                <button
+                  onClick={handleClearChat}
+                  disabled={!activeId}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear chat
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-1 flex-col min-h-0">
+
+              <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+
+                <div className="space-y-4">
+                
+                  {/* ✅ CHAT HISTORY FIRST */}
+                  {library
+                    .find((item) => item.id === activeId)
+                    ?.chatHistory.map((msg, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-3 ${
+                          msg.role === "user" ? "justify-end" : ""
+                        }`}
+                      >
+                        {/* Avatar (AI) */}
+                        {msg.role === "assistant" && (
+                          <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
+                            AI
+                          </div>
+                        )}
+                
+                        {/* Message + Source */}
+                        <div className="flex flex-col max-w-[75%]">
+                          <div
+                            className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
+                              msg.role === "user"
+                                ? "bg-slate-900 text-white"
+                                : "bg-white text-slate-700 ring-1 ring-slate-200"
+                            }`}
+                          >
+
+                            <div>
+
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                              {activeAudioId === `${i}` ? (
+                                // ⏹ STOP BUTTON
+                                <button
+                                  onClick={() => {
+                                    if (chatAudio) {
+                                      chatAudio.pause();
+                                      chatAudio.currentTime = 0;
+                                    }
+                              
+                                    setChatAudio(null);
+                                    setActiveAudioId(null);
+                                  }}
+                                  className="mt-2 text-xs text-red-500 hover:underline"
+                                >
+                                  ⏹ Stop
+                                </button>
+                              ) : (
+                                // 🔊 LISTEN BUTTON
+                                <button
+                                  onClick={async () => {
+                                    if (!msg.content) return;
+                              
+                                    // 🛑 STOP PREVIOUS AUDIO FIRST
+                                    if (chatAudio) {
+                                      chatAudio.pause();
+                                      chatAudio.currentTime = 0;
+                                    }
+                              
+                                    const formData = new FormData();
+                                    formData.append("text", msg.content);
+                                    formData.append("language", selectedLanguage);
+                              
+                                    const res = await fetch("http://127.0.0.1:8000/translate-and-speak", {
+                                      method: "POST",
+                                      body: formData,
+                                    });
+                              
+                                    const contentType = res.headers.get("content-type");
+                              
+                                    if (!res.ok || contentType?.includes("application/json")) {
+                                      alert("Speech failed");
+                                      return;
+                                    }
+                              
+                                    const blob = await res.blob();
+                                    const url = URL.createObjectURL(blob);
+                              
+                                    const audio = new Audio(url);
+                              
+                                    setChatAudio(audio);
+                                    setActiveAudioId(`${i}`);
+                              
+                                    audio.play();
+                              
+                                    audio.onended = () => {
+                                      setChatAudio(null);
+                                      setActiveAudioId(null);
+                                      URL.revokeObjectURL(url);
+                                    };
+                                  }}
+                                  className="mt-2 text-xs text-blue-500 hover:underline"
+                                >
+                                  🔊 Listen
+                                </button>
+                              )}
+
+                            </div>
+                          </div>
+                
+                          {/* SOURCE LABEL */}
+                          {msg.role === "assistant" && (
+                            <>
+                              {msg.sourceType === "external" && (
+                                <p className="mt-1 text-xs text-amber-500">
+                                  🌐 Generated explanation
+                                </p>
+                              )}
+                
+                              {msg.sourceType === "document" && (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  📄 Based on your document
+                                </p>
+                              )}
+                
+                              {msg.sourceType === "none" && (
+                                <p className="mt-1 text-xs text-red-400">
+                                  ⚠️ Not related to document
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                
+                        {/* User Avatar */}
+                        {msg.role === "user" && (
+                          <div className="h-8 w-8 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold">
+                            You
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                
+                  {/* ✅ STREAMING MESSAGE LAST (LIKE CHATGPT) */}
+                  {streamingText && (
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
+                        AI
+                      </div>
+                
+                      <div className="max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-6 bg-white text-slate-700 ring-1 ring-slate-200">
+                        <ReactMarkdown>{streamingText}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                
+                  {/* ✅ AUTO SCROLL */}
+                  <div ref={chatEndRef} />
+                </div>
+
+              </div>
+              <div className="mt-4 shrink-0">
+                <div className="flex gap-3">
+                <input
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAsk();
+                    }
+                  }}
+                  className="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-slate-500"
+                  placeholder="Ask about the selected document..."
+                />
+
+                <button
+                  className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                  disabled={isAsking || !question || !documentText}
+                  onClick={handleAsk}
+                >
+                  {isAsking ? "Thinking..." : "Send"}
+                </button>
+
+                <button
+
+                  onClick={() => {
+                    const SpeechRecognition =
+                      (window as any).SpeechRecognition ||
+                      (window as any).webkitSpeechRecognition;
+                  
+                    if (!SpeechRecognition) {
+                      alert("Speech recognition not supported in this browser");
+                      return;
+                    }
+                  
+                    const recognition = new SpeechRecognition();
+                  
+                    recognition.lang = "en-US";
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                  
+                    setIsListening(true);
+                  
+                    recognition.start();
+
+                  
+                    recognition.onresult = (event: any) => {
+                      const transcript = event.results[0][0].transcript;
+                      setQuestion(transcript);
+                    };
+                  
+                    recognition.onend = () => {
+                      setIsListening(false);
+                    };
+                  
+
+                    recognition.onerror = (event: any) => {
+                      console.error("Speech error:", event.error);
+                      setIsListening(false);
+                    
+                      if (event.error === "no-speech") {
+                        alert("No speech detected. Please speak clearly after clicking Speak.");
+                      } else if (event.error === "not-allowed") {
+                        alert("Microphone permission blocked. Allow mic access.");
+                      } else {
+                        alert("Voice input failed");
+                      }
+                    };
+                  }}
+
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                >
+                  {isListening ? "🎙 Listening..." : "🎤 Speak"}
+                </button>
+                </div>
+              </div>
+
+
+
+
+
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
