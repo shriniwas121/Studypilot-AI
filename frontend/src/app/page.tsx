@@ -44,7 +44,6 @@ export default function Home() {
   const [pastedText, setPastedText] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showActions, setShowActions] = useState(false);
 
 
   const getSafeData = (data: any, fallbackText = "") => {
@@ -60,8 +59,33 @@ export default function Home() {
 
   const handleAsk = async () => {
     try {
-      if (!question || !documentText || isAsking) return;
-  
+
+//    if (!question || !documentText || isAsking) return;
+      if (!question || isAsking) return;
+      
+      // ✅ URL detection
+      if (question.startsWith("http")) {
+        setUrlInput(question);
+        setQuestion("");
+        await handleUrlAnalyze();
+        return;
+      }
+      
+      // ✅ Large pasted text detection
+      if (question.length > 200) {
+        setPastedText(question);
+        setQuestion("");
+        await handlePasteAnalyze();
+        return;
+      }
+      
+      // ✅ Normal Q&A needs document
+      if (!documentText) {
+        alert("Please upload or add content first.");
+        return;
+      }
+
+
       setIsAsking(true);
   
       const userQuestion = question;
@@ -291,6 +315,63 @@ export default function Home() {
     }
   };
   
+
+  const handleFileUpload = async (e: any) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+  
+      setIsUploading(true);
+  
+      const formData = new FormData();
+      formData.append("file", file);
+  
+      const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
+        method: "POST",
+        body: formData,
+      });
+  
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
+  
+      const data = await res.json();
+  
+      // ✅ Sync UI
+      setFileName(data.filename);
+      setDocumentText(data.document_text);
+      setSummary(data.summary);
+  
+      const newItem: LibraryItem = {
+        id: crypto.randomUUID(),
+        name: data.filename,
+        type: "TXT",
+        status: "Analyzed",
+        summary: data.summary,
+        documentText: data.document_text,
+        chatHistory: [
+          {
+            role: "assistant",
+            content: `Here’s a quick overview:\n\n${data.summary}`,
+            sourceType: "document",
+          },
+        ],
+      };
+  
+      setLibrary((prev) => [newItem, ...prev]);
+      setActiveId(newItem.id);
+  
+      setQuestion("");
+      setStreamingText("");
+  
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
 
   const handleCameraUpload = async (e: any) => {
     try {
@@ -594,18 +675,6 @@ export default function Home() {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setShowActions(false);
-    };
-  
-    window.addEventListener("click", handleClickOutside);
-  
-    return () => {
-      window.removeEventListener("click", handleClickOutside);
-    };
   }, []);
 
 
@@ -970,65 +1039,20 @@ export default function Home() {
                 
                   {/* ➕ BUTTON */}
 
+                  <input
+                    type="file"
+                    id="fileUpload"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // ✅ stop outside click
-                      setShowActions((prev) => !prev); // ✅ toggle dropdown
-                    }}
+                    onClick={() => document.getElementById("fileUpload")?.click()}
                     className="h-12 w-12 rounded-xl border text-lg shrink-0"
                   >
                     +
                   </button>
 
-                  {showActions && (
-
-//                    <div className="absolute bottom-14 left-0 z-50 w-56 bg-white border rounded-xl shadow-lg p-3">
-
-                    <div className="space-y-2">
-                    
-                      {/* Upload */}
-                      <label className="block cursor-pointer text-sm border p-2 rounded">
-                        Upload file
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={handleCameraUpload} // reuse or your upload logic
-                        />
-                      </label>
-                    
-                      {/* URL */}
-                      <button
-                        onClick={() => {
-                          const url = prompt("Enter YouTube or Website URL");
-                          if (url) {
-                            setUrlInput(url);
-                            handleUrlAnalyze();
-                          }
-                          setShowActions(false);
-                        }}
-                        className="w-full text-left text-sm border p-2 rounded"
-                      >
-                        Add URL
-                      </button>
-                    
-                      {/* Paste */}
-                      <button
-                        onClick={() => {
-                          const text = prompt("Paste your text");
-                          if (text) {
-                            setPastedText(text);
-                            handlePasteAnalyze();
-                          }
-                          setShowActions(false);
-                        }}
-                        className="w-full text-left text-sm border p-2 rounded"
-                      >
-                        Paste Text
-                      </button>
-                    
-                    </div>
-
-                  )}
                 
                   {/* INPUT */}
                   <input
@@ -1042,13 +1066,13 @@ export default function Home() {
                       }
                     }}
                     className="h-12 flex-1 rounded-xl border px-4 text-sm"
-                    placeholder="Ask about the selected document..."
+                    placeholder="Ask question, paste text, or enter URL..."
                   />
                 
                   {/* SEND */}
                   <button
                     className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
-                    disabled={isAsking || !question || !documentText}
+                    disabled={isAsking || !question.trim()}
                     onClick={handleAsk}
                   >
                     {isAsking ? "..." : "Send"}
