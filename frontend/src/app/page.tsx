@@ -44,6 +44,7 @@ export default function Home() {
   const [pastedText, setPastedText] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
 
   const getSafeData = (data: any, fallbackText = "") => {
@@ -638,113 +639,10 @@ export default function Home() {
           </p>
         </div>
       
-        {/* ADD CONTENT */}
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Add content
-          </p>
+
       
-          {/* Upload */}
-          <label className="mb-3 block cursor-pointer rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Upload file
-            <input
-              type="file"
-              className="hidden"
-              onChange={async (e) => {
-                try {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-      
-                  setIsUploading(true);
-      
-                  const formData = new FormData();
-                  formData.append("file", file);
-      
-                  const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
-                    method: "POST",
-                    body: formData,
-                  });
-      
-                  if (!res.ok) throw new Error(await res.text());
-      
-                  const data = await res.json();
-      
-                  const newItem: LibraryItem = {
-                    id: crypto.randomUUID(),
-                    name: data.filename,
-                    type: "TXT",
-                    status: "Analyzed",
-                    summary: data.summary,
-                    documentText: data.document_text,
-                    chatHistory: [
-                      {
-                        role: "assistant",
-                        content: `Here’s a quick overview:\n\n${data.summary}`,
-                        sourceType: "document",
-                      },
-                    ],
-                  };
-      
-                  setLibrary((prev) => [newItem, ...prev]);
-                  setActiveId(newItem.id);
-                } catch (err) {
-                  alert("Upload failed");
-                } finally {
-                  setIsUploading(false);
-                }
-              }}
-            />
-          </label>
-      
-          {/* URL */}
-          <div className="mt-3 rounded-2xl border p-3 bg-slate-50">
-            <input
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              className="w-full bg-transparent text-sm outline-none"
-              placeholder="Paste URL..."
-            />
-            <button
-              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-white"
-              onClick={handleUrlAnalyze}
-            >
-              Analyze
-            </button>
-          </div>
-      
-          {/* TEXT */}
-          <div className="mt-3 rounded-2xl border p-3 bg-slate-50">
-            <textarea
-              value={pastedText}
-              onChange={(e) => setPastedText(e.target.value)}
-              className="w-full bg-transparent text-sm outline-none"
-              rows={3}
-              placeholder="Paste content..."
-            />
-            <button
-              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-white"
-              onClick={handlePasteAnalyze}
-            >
-              Analyze
-            </button>
-          </div>
-      
-          {/* CAMERA */}
-          <div className="mt-3 rounded-2xl border p-3 bg-slate-50">
-            <p className="text-xs text-slate-500 mb-2">Camera</p>
-            <label className="block cursor-pointer border px-4 py-2 text-center">
-              📷 Camera
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleCameraUpload}
-              />
-            </label>
-          </div>
-        </div>
-      
+
+
         {/* LIBRARY */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
           <p className="text-xs font-semibold text-slate-500 mb-2">
@@ -996,86 +894,116 @@ export default function Home() {
 
               </div>
               <div className="mt-4 shrink-0">
-                <div className="flex flex-col md:flex-row gap-3">
-                <input
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAsk();
-                    }
-                  }}
-                  className="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-slate-500"
-                  placeholder="Ask about the selected document..."
-                />
 
-                <button
-                  className="w-full md:w-auto rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                  disabled={isAsking || !question || !documentText}
-                  onClick={handleAsk}
-                >
-                  {isAsking ? "Thinking..." : "Send"}
-                </button>
+                <div className="flex flex-col md:flex-row gap-3 items-center">
+                
+                  {/* ➕ ACTION BUTTON */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowActions((prev) => !prev)}
+                      className="h-12 w-12 rounded-xl border text-lg"
+                    >
+                      +
+                    </button>
+                
 
-                <button
 
-                  onClick={() => {
-                    const SpeechRecognition =
-                      (window as any).SpeechRecognition ||
-                      (window as any).webkitSpeechRecognition;
-                  
-                    if (!SpeechRecognition) {
-                      alert("Speech recognition not supported in this browser");
-                      return;
-                    }
-                  
-                    const recognition = new SpeechRecognition();
-                  
-                    recognition.lang = "en-US";
-                    recognition.continuous = false;
-                    recognition.interimResults = false;
-                  
-                    setIsListening(true);
-                  
-                    recognition.start();
-
-                  
-                    recognition.onresult = (event: any) => {
-                      const transcript = event.results[0][0].transcript;
-                      setQuestion(transcript);
-                    };
-                  
-                    recognition.onend = () => {
-                      setIsListening(false);
-                    };
-                  
-
-                    recognition.onerror = (event: any) => {
-                      console.error("Speech error:", event.error);
-                      setIsListening(false);
+                    {/* DROPDOWN */}
+                    {showActions && (
+                      <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3 space-y-2">
                     
-                      if (event.error === "no-speech") {
-                        alert("No speech detected. Please speak clearly after clicking Speak.");
-                      } else if (event.error === "not-allowed") {
-                        alert("Microphone permission blocked. Allow mic access.");
-                      } else {
-                        alert("Voice input failed");
+                        {/* Upload */}
+                        <label className="block cursor-pointer text-sm border p-2 rounded">
+                          Upload file
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                    
+                              // your existing logic...
+                    
+                              setShowActions(false);   // ✅ CORRECT PLACE
+                            }}
+                          />
+                        </label>
+                    
+                        {/* URL */}
+                        <button
+                          className="w-full text-left text-sm border p-2 rounded"
+                          onClick={() => {
+                            handleUrlAnalyze();
+                            setShowActions(false);   // ✅ HERE
+                          }}
+                        >
+                          Paste URL & Analyze
+                        </button>
+                    
+                        {/* TEXT */}
+                        <button
+                          className="w-full text-left text-sm border p-2 rounded"
+                          onClick={() => {
+                            handlePasteAnalyze();
+                            setShowActions(false);   // ✅ HERE
+                          }}
+                        >
+                          Paste Text & Analyze
+                        </button>
+                    
+                        {/* CAMERA (MOBILE ONLY) */}
+                        <label className="block cursor-pointer text-sm border p-2 rounded md:hidden">
+                          Camera
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => {
+                              handleCameraUpload(e);
+                              setShowActions(false);   // ✅ HERE
+                            }}
+                          />
+                        </label>
+                    
+                      </div>
+                    )}
+                  </div>
+               
+                  {/* INPUT */}
+                  <input
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAsk();
                       }
-                    };
-                  }}
-
-                  className="w-full md:w-auto rounded-xl border border-slate-300 px-3 py-2 text-xs"
-                >
-                  {isListening ? "🎙 Listening..." : "🎤 Speak"}
-                </button>
+                    }}
+                    className="h-12 flex-1 rounded-xl border px-4 text-sm"
+                    placeholder="Ask about the selected document..."
+                  />
+                
+                  {/* SEND */}
+                  <button
+                    className="rounded-xl bg-slate-900 px-4 py-3 text-white"
+                    disabled={isAsking || !question || !documentText}
+                    onClick={handleAsk}
+                  >
+                    {isAsking ? "Thinking..." : "Send"}
+                  </button>
+                
+                  {/* 🎤 SPEAK */}
+                  <button
+                    onClick={() => { /* keep your existing speech code */ }}
+                    className="rounded-xl border px-3 py-2 text-xs"
+                  >
+                    {isListening ? "🎙 Listening..." : "🎤 Speak"}
+                  </button>
+                
                 </div>
+
               </div>
-
-
-
-
-
             </div>
           </section>
         </div>
