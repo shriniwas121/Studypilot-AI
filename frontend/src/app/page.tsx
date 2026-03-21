@@ -775,7 +775,7 @@ export default function Home() {
 
             <div className="flex flex-1 flex-col min-h-0">
 
-              <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <div className="flex-1 min-h-[400px] md:min-h-[500px] overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
 
                 <div className="space-y-4">
                 
@@ -943,7 +943,8 @@ export default function Home() {
                   </button>
 
                   {showActions && (
-                    <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
+
+                    <div className="absolute top-[-160px] left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
                   
                       <label className="block cursor-pointer text-sm border p-2 rounded">
                         Upload file
@@ -964,6 +965,11 @@ export default function Home() {
                   
                             const data = await res.json();
                   
+                            // ✅ ADD THESE 3 LINES HERE
+                            setFileName(data.filename);
+                            setDocumentText(data.document_text);
+                            setSummary(data.summary);
+
 
                             const newItem: LibraryItem = {
                               id: crypto.randomUUID(),
@@ -980,7 +986,6 @@ export default function Home() {
                                 },
                               ],
                             };
-
                   
                             setLibrary((prev) => [newItem, ...prev]);
                             setActiveId(newItem.id);
@@ -996,6 +1001,7 @@ export default function Home() {
                       </label>
                   
                     </div>
+
                   )}
                 
                   {/* INPUT */}
@@ -1015,7 +1021,7 @@ export default function Home() {
                   {/* SEND */}
                   <button
                     className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
-                    disabled={isAsking || !question || !documentText}
+                    disabled={isAsking || !question}
                     onClick={handleAsk}
                   >
                     {isAsking ? "..." : "Send"}
