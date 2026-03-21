@@ -609,231 +609,231 @@ export default function Home() {
         <div className="flex items-center justify-between px-5 py-4 md:hidden">
           <h1 className="text-lg font-bold">Menu</h1>
           <button onClick={() => setShowSidebar(false)}>✖</button>
-        </div>
-		<div className="border-b border-slate-200 px-5 py-5">
-          <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
-          <p className="mt-1 text-sm text-slate-500">AI-powered study assistant for documents, videos, and voice learning</p>
-        </div>
-
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Add content</p>
-
-          <label className="mb-3 block cursor-pointer rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Upload file
-            <input
-              type="file"
-              className="hidden"
-              onChange={async (e) => {
-                try {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-
-                  setIsUploading(true);
-                  setAnswer("");
-                  setQuestion("");
-
-                  const formData = new FormData();
-                  formData.append("file", file);
-
-                  const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(errorText);
-                  }
-
-                  const data = await res.json();
-                  setSummary(data.summary);
-                  setFileName(data.filename);
-                  setDocumentText(data.document_text);
-                  setQuestion("");
-                  setAnswer("");
-
-                  const ext = data.filename.split(".").pop()?.toUpperCase();
-                  
-                  const safeType: LibraryItem["type"] =
-                    ext === "PDF" || ext === "TXT" || ext === "SAS"
-                      ? ext
-                      : "TXT";
-                  
-
-                  const newItem: LibraryItem = {
-                    id: crypto.randomUUID(),
-                    name: data.filename,
-                    type: safeType,
-                    status: "Analyzed",
-                    summary: data.summary || data.text,
-                    documentText: data.document_text || data.text,
-                    chatHistory: [
-                      {
-                        role: "assistant",
-                        content: `Here’s a quick overview of your document:\n\n${data.summary}`,
-                        sourceType: "document",
-                      },
-                    ],
-                  };
-
-                  setLibrary((prev) => [newItem, ...prev]);
-                  setActiveId(newItem.id);
-                } catch (err) {
-                  console.error(err);
-                  setSummary("Upload failed. Check backend terminal.");
-                } finally {
-                  setIsUploading(false);
-                }
-              }}
-            />
-          </label>
-
-
-          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-            <input
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              className="w-full bg-transparent text-sm outline-none"
-              placeholder="Paste YouTube or Website URL..."
-            />
-          
-            <button
-              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              onClick={handleUrlAnalyze}
-            >
-              Analyze
-            </button>
+  		<div className="border-b border-slate-200 px-5 py-5">
+            <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
+            <p className="mt-1 text-sm text-slate-500">AI-powered study assistant for documents, videos, and voice learning</p>
           </div>
-
-          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-            <textarea
-              value={pastedText}
-              onChange={(e) => setPastedText(e.target.value)}
-              className="w-full bg-transparent text-sm outline-none resize-none"
-              rows={3}
-              placeholder="Paste content OR screenshot..."
-            />
-          
-            <button
-              className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              onClick={handlePasteAnalyze}
-            >
-              Analyze
-            </button>
-          
-            <p className="mt-2 text-xs text-slate-400">
-              Tip: Press Ctrl + V to paste screenshot directly
-            </p>
-          </div>
-
-          <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500 mb-2">Camera (mobile only)</p>
-          
-            <label className="block cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm text-center">
-              📷 Camera
+  
+          <div className="border-b border-slate-200 px-5 py-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Add content</p>
+  
+            <label className="mb-3 block cursor-pointer rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
+              Upload file
               <input
                 type="file"
-                accept="image/*"
-                capture="environment"
                 className="hidden"
-                onChange={handleCameraUpload}
+                onChange={async (e) => {
+                  try {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+  
+                    setIsUploading(true);
+                    setAnswer("");
+                    setQuestion("");
+  
+                    const formData = new FormData();
+                    formData.append("file", file);
+  
+                    const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
+                      method: "POST",
+                      body: formData,
+                    });
+  
+                    if (!res.ok) {
+                      const errorText = await res.text();
+                      throw new Error(errorText);
+                    }
+  
+                    const data = await res.json();
+                    setSummary(data.summary);
+                    setFileName(data.filename);
+                    setDocumentText(data.document_text);
+                    setQuestion("");
+                    setAnswer("");
+  
+                    const ext = data.filename.split(".").pop()?.toUpperCase();
+                    
+                    const safeType: LibraryItem["type"] =
+                      ext === "PDF" || ext === "TXT" || ext === "SAS"
+                        ? ext
+                        : "TXT";
+                    
+  
+                    const newItem: LibraryItem = {
+                      id: crypto.randomUUID(),
+                      name: data.filename,
+                      type: safeType,
+                      status: "Analyzed",
+                      summary: data.summary || data.text,
+                      documentText: data.document_text || data.text,
+                      chatHistory: [
+                        {
+                          role: "assistant",
+                          content: `Here’s a quick overview of your document:\n\n${data.summary}`,
+                          sourceType: "document",
+                        },
+                      ],
+                    };
+  
+                    setLibrary((prev) => [newItem, ...prev]);
+                    setActiveId(newItem.id);
+                  } catch (err) {
+                    console.error(err);
+                    setSummary("Upload failed. Check backend terminal.");
+                  } finally {
+                    setIsUploading(false);
+                  }
+                }}
               />
             </label>
-          </div>
-
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="mb-3 flex items-center justify-between px-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Library</p>
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
-              {library.length}
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {library.map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-2xl border transition ${
-                  activeId === item.id
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white hover:bg-slate-50"
-                }`}
+  
+  
+            <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+              <input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className="w-full bg-transparent text-sm outline-none"
+                placeholder="Paste YouTube or Website URL..."
+              />
+            
+              <button
+                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                onClick={handleUrlAnalyze}
               >
-                <button
-                  onClick={() => {
-                    setActiveId(item.id);
-                    setFileName(item.name);
-                    setSummary(item.summary);
-                    setDocumentText(item.documentText);
+                Analyze
+              </button>
+            </div>
+  
+            <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+              <textarea
+                value={pastedText}
+                onChange={(e) => setPastedText(e.target.value)}
+                className="w-full bg-transparent text-sm outline-none resize-none"
+                rows={3}
+                placeholder="Paste content OR screenshot..."
+              />
             
-                    const lastUser = item.chatHistory
-                      .filter((m) => m.role === "user")
-                      .slice(-1)[0];
+              <button
+                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                onClick={handlePasteAnalyze}
+              >
+                Analyze
+              </button>
             
-                    const lastAssistant = item.chatHistory
-                      .filter((m) => m.role === "assistant")
-                      .slice(-1)[0];
+              <p className="mt-2 text-xs text-slate-400">
+                Tip: Press Ctrl + V to paste screenshot directly
+              </p>
+            </div>
+  
+            <div className="mt-3 rounded-2xl border border-slate-300 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500 mb-2">Camera (mobile only)</p>
             
-                    setQuestion(lastUser?.content || "");
-                    setAnswer(lastAssistant?.content || "");
-                  }}
-                  className="w-full px-3 pt-3 text-left"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p
-                        className={`mt-1 text-xs ${
-                          activeId === item.id ? "text-slate-300" : "text-slate-500"
-                        }`}
-                      >
-                        {item.type} • {item.status}
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[10px] font-medium ${
-                        activeId === item.id
-                          ? "bg-white/10 text-white"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      Open
-                    </span>
-                  </div>
-                </button>
-            
+              <label className="block cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm text-center">
+                📷 Camera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleCameraUpload}
+                />
+              </label>
+            </div>
+  
+          </div>
+  
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            <div className="mb-3 flex items-center justify-between px-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Library</p>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                {library.length}
+              </span>
+            </div>
+  
+            <div className="space-y-2">
+              {library.map((item) => (
                 <div
-                  className={`flex gap-2 px-3 pb-3 pt-2 ${
-                    activeId === item.id ? "text-white" : "text-slate-600"
+                  key={item.id}
+                  className={`rounded-2xl border transition ${
+                    activeId === item.id
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
                   }`}
                 >
                   <button
-                    onClick={() => handleRenameItem(item.id)}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium ${
-                      activeId === item.id
-                        ? "bg-white/10 hover:bg-white/20"
-                        : "bg-slate-100 hover:bg-slate-200"
+                    onClick={() => {
+                      setActiveId(item.id);
+                      setFileName(item.name);
+                      setSummary(item.summary);
+                      setDocumentText(item.documentText);
+              
+                      const lastUser = item.chatHistory
+                        .filter((m) => m.role === "user")
+                        .slice(-1)[0];
+              
+                      const lastAssistant = item.chatHistory
+                        .filter((m) => m.role === "assistant")
+                        .slice(-1)[0];
+              
+                      setQuestion(lastUser?.content || "");
+                      setAnswer(lastAssistant?.content || "");
+                    }}
+                    className="w-full px-3 pt-3 text-left"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        <p
+                          className={`mt-1 text-xs ${
+                            activeId === item.id ? "text-slate-300" : "text-slate-500"
+                          }`}
+                        >
+                          {item.type} • {item.status}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                          activeId === item.id
+                            ? "bg-white/10 text-white"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        Open
+                      </span>
+                    </div>
+                  </button>
+              
+                  <div
+                    className={`flex gap-2 px-3 pb-3 pt-2 ${
+                      activeId === item.id ? "text-white" : "text-slate-600"
                     }`}
                   >
-                    Rename
-                  </button>
-            
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium ${
-                      activeId === item.id
-                        ? "bg-white/10 hover:bg-white/20"
-                        : "bg-slate-100 hover:bg-slate-200"
-                    }`}
-                  >
-                    Remove
-                  </button>
+                    <button
+                      onClick={() => handleRenameItem(item.id)}
+                      className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                        activeId === item.id
+                          ? "bg-white/10 hover:bg-white/20"
+                          : "bg-slate-100 hover:bg-slate-200"
+                      }`}
+                    >
+                      Rename
+                    </button>
+              
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                        activeId === item.id
+                          ? "bg-white/10 hover:bg-white/20"
+                          : "bg-slate-100 hover:bg-slate-200"
+                      }`}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-
+              ))}
+  
+            </div>
           </div>
         </div>
       </aside>
