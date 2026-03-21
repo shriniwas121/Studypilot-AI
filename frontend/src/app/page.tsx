@@ -78,7 +78,7 @@ export default function Home() {
   
 
       console.log("Sending request...");
-      const res = await fetch("http://127.0.0.1:8000/ask", {
+      const res = await fetch("https://studypilot-backend-f5td.onrender.com/ask", {
         method: "POST",
         headers: {
           "x-api-key": "insightxai-10821",
@@ -136,6 +136,8 @@ export default function Home() {
         }
       }, 15);
   
+      return () => clearInterval(interval);
+
       setQuestion("");
     } catch (err) {
       console.error(err);
@@ -160,11 +162,11 @@ export default function Home() {
   
       if (urlInput.includes("youtube.com") || urlInput.includes("youtu.be")) {
         formData.append("video_url", urlInput);
-        endpoint = "http://127.0.0.1:8000/summarize-video";
+        endpoint = "https://studypilot-backend-f5td.onrender.com/summarize-video";
         type = "VIDEO";
       } else {
         formData.append("website_url", urlInput);
-        endpoint = "http://127.0.0.1:8000/summarize-website";
+        endpoint = "https://studypilot-backend-f5td.onrender.com/summarize-website";
         type = "WEB";
       }
   
@@ -231,14 +233,20 @@ export default function Home() {
   
       const formData = new FormData();
       formData.append("text", pastedText);
-  
-      const res = await fetch("http://127.0.0.1:8000/summarize-text", {
+
+
+      const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize-text", {
         method: "POST",
         body: formData,
       });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
+      
+      const data = await res.json();  
 
-
-      const data = await res.json();
       
       console.log("API DATA:", data); // 👈 ADD HERE
       
@@ -292,7 +300,14 @@ export default function Home() {
         body: formData,
       });
   
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
       const data = await res.json();
+
+
 
       const safeSummary =
         data.summary || data.document_text || data.text || "⚠️ No readable text found. Try clearer image.";
@@ -537,6 +552,11 @@ export default function Home() {
               body: formData,
             });
   
+
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(errorText);
+            }
             const data = await res.json();
   
             const safeSummary =
@@ -585,7 +605,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-full md:w-80 shrink-0 flex-col border-r border-slate-200 bg-white overflow-hidden">
+      <aside className="hidden md:flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white overflow-hidden">
         
 		<div className="border-b border-slate-200 px-5 py-5">
           <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
@@ -612,7 +632,7 @@ export default function Home() {
                   const formData = new FormData();
                   formData.append("file", file);
 
-                  const res = await fetch("http://127.0.0.1:8000/summarize", {
+                  const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
                     method: "POST",
                     body: formData,
                   });
@@ -939,7 +959,7 @@ export default function Home() {
                                     formData.append("text", msg.content);
                                     formData.append("language", selectedLanguage);
                               
-                                    const res = await fetch("http://127.0.0.1:8000/translate-and-speak", {
+                                    const res = await fetch("https://studypilot-backend-f5td.onrender.com/translate-and-speak", {
                                       method: "POST",
                                       body: formData,
                                     });
