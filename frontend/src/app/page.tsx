@@ -719,7 +719,7 @@ export default function Home() {
 
         <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
 
-          <section className="flex flex-col w-full h-full rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <section className="flex flex-col w-full max-w-7xl mx-auto h-full rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Chat with content</h3>
@@ -772,6 +772,8 @@ export default function Home() {
                     setQuestion("");
                     setAnswer("");
                     setStreamingText("");
+                    localStorage.removeItem("docpilot_active_id");
+
                   }}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
                 >
@@ -945,7 +947,10 @@ export default function Home() {
                   {/* ➕ BUTTON */}
 
                   <button
-                    onClick={(e) => e.stopPropagation(); // VERY IMPORTANT setShowActions((prev) => !prev)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // ✅ stop outside click
+                      setShowActions((prev) => !prev); // ✅ toggle dropdown
+                    }}
                     className="h-12 w-12 rounded-xl border text-lg shrink-0"
                   >
                     +
@@ -953,7 +958,7 @@ export default function Home() {
 
                   {showActions && (
 
-                    <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
+                    <div className="absolute bottom-14 left-0 z-50 w-56 bg-white border rounded-xl shadow-lg p-3">
                   
                       <label className="block cursor-pointer text-sm border p-2 rounded">
                         Upload file
@@ -1031,7 +1036,7 @@ export default function Home() {
                   {/* SEND */}
                   <button
                     className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
-                    disabled={isAsking || !question}
+                    disabled={isAsking || !question || !documentText}
                     onClick={handleAsk}
                   >
                     {isAsking ? "..." : "Send"}
