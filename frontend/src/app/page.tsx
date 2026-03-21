@@ -614,13 +614,18 @@ export default function Home() {
     <div className="flex flex-col md:flex-row h-screen bg-slate-100 text-slate-900">
   
       {/* ✅ OVERLAY (OUTSIDE ASIDE) */}
+
+
       {showSidebar && (
         <div
           className="fixed inset-0 bg-black/30 z-40 md:hidden"
           onClick={() => setShowSidebar(false)}
-        </div>
+        ></div>
       )}
-  
+ 
+
+
+
       {/* ✅ SIDEBAR */}
       <aside
         className={`
