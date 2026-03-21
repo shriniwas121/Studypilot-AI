@@ -215,6 +215,10 @@ export default function Home() {
   
       setLibrary((prev) => [newItem, ...prev]);
       setActiveId(newItem.id);
+      setQuestion("");
+      setAnswer("");
+      setStreamingText("");
+
       setUrlInput("");
   
     } catch (err) {
@@ -274,6 +278,9 @@ export default function Home() {
 
       setLibrary((prev) => [newItem, ...prev]);
       setActiveId(newItem.id);
+      setQuestion("");
+      setAnswer("");
+      setStreamingText("");
       setPastedText("");
   
     } catch (err) {
@@ -338,6 +345,9 @@ export default function Home() {
  
       setLibrary((prev) => [newItem, ...prev]);
       setActiveId(newItem.id);
+      setQuestion("");
+      setAnswer("");
+      setStreamingText("");
   
     } catch (err) {
       console.error(err);
@@ -587,6 +597,10 @@ export default function Home() {
   
             setLibrary((prev) => [newItem, ...prev]);
             setActiveId(newItem.id);
+            setQuestion("");
+            setAnswer("");
+            setStreamingText("");
+
   
           } catch (err) {
             console.error(err);
@@ -650,18 +664,40 @@ export default function Home() {
           </p>
       
           <div className="space-y-2">
+
             {library.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveId(item.id)}
-                className="w-full text-left p-3 border rounded-xl bg-white"
-              >
-                <p className="text-sm font-medium truncate">{item.name}</p>
-                <p className="text-xs text-slate-500">
-                  {item.type} • {item.status}
-                </p>
-              </button>
+              <div key={item.id} className="p-3 border rounded-xl bg-white">
+            
+                <button
+                  onClick={() => setActiveId(item.id)}
+                  className="w-full text-left"
+                >
+                  <p className="text-sm font-medium truncate">{item.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {item.type} • {item.status}
+                  </p>
+                </button>
+            
+                {/* ACTIONS */}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => handleRenameItem(item.id)}
+                    className="text-xs text-blue-500"
+                  >
+                    Rename
+                  </button>
+            
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className="text-xs text-red-500"
+                  >
+                    Delete
+                  </button>
+                </div>
+            
+              </div>
             ))}
+
           </div>
         </div>
       </aside>
@@ -895,81 +931,71 @@ export default function Home() {
               </div>
               <div className="mt-4 shrink-0">
 
-                <div className="flex flex-col md:flex-row gap-3 items-center">
+                <div className="flex items-center gap-2 relative">
                 
-                  {/* ➕ ACTION BUTTON */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowActions((prev) => !prev)}
-                      className="h-12 w-12 rounded-xl border text-lg"
-                    >
-                      +
-                    </button>
+                  {/* ➕ BUTTON */}
+
+                  <button
+                    onClick={() => setShowActions((prev) => !prev)}
+                    className="h-12 w-12 rounded-xl border text-lg shrink-0"
+                  >
+                    +
+                  </button>
+
+                  {showActions && (
+                    <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3">
+                  
+                      <label className="block cursor-pointer text-sm border p-2 rounded">
+                        Upload file
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                  
+                            const formData = new FormData();
+                            formData.append("file", file);
+                  
+                            const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
+                              method: "POST",
+                              body: formData,
+                            });
+                  
+                            const data = await res.json();
+                  
+                            const newItem = {
+                              id: crypto.randomUUID(),
+                              name: data.filename,
+                              type: "TXT",
+                              status: "Analyzed",
+                              summary: data.summary,
+                              documentText: data.document_text,
+                              chatHistory: [
+                                {
+                                  role: "assistant",
+                                  content: `Here’s a quick overview:\n\n${data.summary}`,
+                                  sourceType: "document",
+                                },
+                              ],
+                            };
+                  
+                            setLibrary((prev) => [newItem, ...prev]);
+                            setActiveId(newItem.id);
+                  
+                            // reset chat
+                            setQuestion("");
+                            setAnswer("");
+                            setStreamingText("");
+                  
+                            setShowActions(false);
+                          }}
+                        />
+                      </label>
+                  
+                    </div>
+                  )}
                 
-
-
-                    {/* DROPDOWN */}
-                    {showActions && (
-                      <div className="absolute bottom-14 left-0 w-56 bg-white border rounded-xl shadow-lg z-50 p-3 space-y-2">
-                    
-                        {/* Upload */}
-                        <label className="block cursor-pointer text-sm border p-2 rounded">
-                          Upload file
-                          <input
-                            type="file"
-                            className="hidden"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                    
-                              // your existing logic...
-                    
-                              setShowActions(false);   // ✅ CORRECT PLACE
-                            }}
-                          />
-                        </label>
-                    
-                        {/* URL */}
-                        <button
-                          className="w-full text-left text-sm border p-2 rounded"
-                          onClick={() => {
-                            handleUrlAnalyze();
-                            setShowActions(false);   // ✅ HERE
-                          }}
-                        >
-                          Paste URL & Analyze
-                        </button>
-                    
-                        {/* TEXT */}
-                        <button
-                          className="w-full text-left text-sm border p-2 rounded"
-                          onClick={() => {
-                            handlePasteAnalyze();
-                            setShowActions(false);   // ✅ HERE
-                          }}
-                        >
-                          Paste Text & Analyze
-                        </button>
-                    
-                        {/* CAMERA (MOBILE ONLY) */}
-                        <label className="block cursor-pointer text-sm border p-2 rounded md:hidden">
-                          Camera
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => {
-                              handleCameraUpload(e);
-                              setShowActions(false);   // ✅ HERE
-                            }}
-                          />
-                        </label>
-                    
-                      </div>
-                    )}
-                  </div>
-               
                   {/* INPUT */}
                   <input
                     value={question}
@@ -986,22 +1012,23 @@ export default function Home() {
                 
                   {/* SEND */}
                   <button
-                    className="rounded-xl bg-slate-900 px-4 py-3 text-white"
+                    className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
                     disabled={isAsking || !question || !documentText}
                     onClick={handleAsk}
                   >
-                    {isAsking ? "Thinking..." : "Send"}
+                    {isAsking ? "..." : "Send"}
                   </button>
                 
-                  {/* 🎤 SPEAK */}
+                  {/* SPEAK */}
                   <button
-                    onClick={() => { /* keep your existing speech code */ }}
-                    className="rounded-xl border px-3 py-2 text-xs"
+                    onClick={() => { /* keep existing */ }}
+                    className="h-12 rounded-xl border px-3 text-xs shrink-0"
                   >
-                    {isListening ? "🎙 Listening..." : "🎤 Speak"}
+                    {isListening ? "🎙" : "🎤"}
                   </button>
                 
                 </div>
+
 
               </div>
             </div>
