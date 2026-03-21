@@ -287,7 +287,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
   
-      const res = await fetch("http://127.0.0.1:8000/ocr", {
+      const res = await fetch("https://studypilot-backend-f5td.onrender.com/ocr", {
         method: "POST",
         body: formData,
       });
@@ -532,7 +532,7 @@ export default function Home() {
           setIsUploading(true);
   
           try {
-            const res = await fetch("http://127.0.0.1:8000/ocr", {
+            const res = await fetch("https://studypilot-backend-f5td.onrender.com/ocr", {
               method: "POST",
               body: formData,
             });
