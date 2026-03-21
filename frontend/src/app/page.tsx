@@ -964,10 +964,11 @@ export default function Home() {
                   
                             const data = await res.json();
                   
-                            const newItem = {
+
+                            const newItem: LibraryItem = {
                               id: crypto.randomUUID(),
                               name: data.filename,
-                              type: "TXT",
+                              type: "TXT", // ✅ must match union type
                               status: "Analyzed",
                               summary: data.summary,
                               documentText: data.document_text,
@@ -975,10 +976,11 @@ export default function Home() {
                                 {
                                   role: "assistant",
                                   content: `Here’s a quick overview:\n\n${data.summary}`,
-                                  sourceType: "document",
+                                  sourceType: "document", // ✅ must match union type
                                 },
                               ],
                             };
+
                   
                             setLibrary((prev) => [newItem, ...prev]);
                             setActiveId(newItem.id);
