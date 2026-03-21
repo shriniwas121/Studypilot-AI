@@ -80,10 +80,12 @@ export default function Home() {
       }
       
       // ✅ Normal Q&A needs document
-      if (!documentText) {
-        alert("Please upload or add content first.");
-        return;
-      }
+      // if (!documentText) {
+      //   alert("Please upload or add content first.");
+      //   return;
+      // }
+
+      const hasDocument = !!documentText;
 
 
       setIsAsking(true);
@@ -99,7 +101,7 @@ export default function Home() {
   
       const formData = new FormData();
       formData.append("question", userQuestion);
-      formData.append("document_text", documentText);
+      formData.append("document_text", hasDocument ? documentText : "");
       formData.append("chat_history", chatHistoryText);
   
 
@@ -1069,13 +1071,19 @@ export default function Home() {
                   />
                 
                   {/* SEND */}
+
                   <button
                     className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
-                    disabled={isAsking || !question.trim()}
+                    disabled={isAsking || isUploading || !question.trim()}
                     onClick={handleAsk}
                   >
-                    {isAsking ? "..." : "Send"}
+                    {isUploading
+                      ? "Analyzing..."
+                      : isAsking
+                      ? "Thinking..."
+                      : "Send"}
                   </button>
+
                 
                   {/* SPEAK */}
                   <button
