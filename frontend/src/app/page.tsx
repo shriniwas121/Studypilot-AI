@@ -592,21 +592,20 @@ export default function Home() {
     };
   
 
-    useEffect(() => {
-      const handleClickOutside = () => {
-        setShowActions(false);
-      };
-    
-      window.addEventListener("click", handleClickOutside);
-    
-      return () => {
-        window.removeEventListener("click", handleClickOutside);
-      };
-    }, []);
-
-
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowActions(false);
+    };
+  
+    window.addEventListener("click", handleClickOutside);
+  
+    return () => {
+      window.removeEventListener("click", handleClickOutside);
+    };
   }, []);
 
 
