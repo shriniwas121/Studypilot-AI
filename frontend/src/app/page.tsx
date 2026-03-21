@@ -37,12 +37,13 @@ export default function Home() {
   const [isAsking, setIsAsking] = useState(false);
   const [library, setLibrary] = useState<LibraryItem[]>([]);  
   const [activeId, setActiveId] = useState<string>("");
-  const [chatEndRef] = useRef<HTMLDivElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [chatAudio, setChatAudio] = useState<HTMLAudioElement | null>(null);
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const [urlInput, setUrlInput] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
 
 
   const getSafeData = (data: any, fallbackText = "") => {
@@ -135,9 +136,7 @@ export default function Home() {
           setStreamingText("");
         }
       }, 15);
-  
-      return () => clearInterval(interval);
-
+ 
       setQuestion("");
     } catch (err) {
       console.error(err);
@@ -603,10 +602,19 @@ export default function Home() {
   }, []);
 
 
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-100 text-slate-900">
-
-
+  
+      {/* ✅ OVERLAY (OUTSIDE ASIDE) */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 md:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+  
+      {/* ✅ SIDEBAR */}
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-80 bg-white border-r border-slate-200
@@ -615,6 +623,7 @@ export default function Home() {
           md:static md:translate-x-0 md:flex md:flex-col
         `}
       >
+
         {/* MOBILE HEADER */}
         <div className="flex items-center justify-between px-5 py-4 md:hidden border-b">
           <h1 className="text-lg font-bold">Menu</h1>
@@ -761,6 +770,7 @@ export default function Home() {
 
       <main className="flex w-full min-w-0 flex-1 flex-col overflow-hidden">
 
+
         <div className="border-b border-slate-200 bg-white px-4 md:px-8 py-5 flex items-center gap-3">
           
           {/* MOBILE MENU BUTTON */}
@@ -779,12 +789,6 @@ export default function Home() {
               Get a summary and ask grounded questions from the selected content.
             </p>
           </div>
-        </div>
-
-          <h2 className="text-xl font-semibold">{fileName || "Select or upload a file"}</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Get a summary and ask grounded questions from the selected content.
-          </p>
         </div>
 
         <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
