@@ -609,7 +609,7 @@ export default function Home() {
         <div className="flex items-center justify-between px-5 py-4 md:hidden">
           <h1 className="text-lg font-bold">Menu</h1>
           <button onClick={() => setShowSidebar(false)}>✖</button>
-  		<div className="border-b border-slate-200 px-5 py-5">
+  		  <div className="border-b border-slate-200 px-5 py-5">
             <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
             <p className="mt-1 text-sm text-slate-500">AI-powered study assistant for documents, videos, and voice learning</p>
           </div>
