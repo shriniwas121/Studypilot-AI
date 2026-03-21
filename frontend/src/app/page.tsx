@@ -651,11 +651,30 @@ export default function Home() {
         </div>
       
 
-      
 
 
         {/* LIBRARY */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
+
+          <div className="px-3 py-3 border-b">
+            <button
+              onClick={() => {
+                setActiveId("");
+                setFileName("");
+                setSummary("");
+                setDocumentText("");
+                setQuestion("");
+                setAnswer("");
+                setStreamingText("");
+                localStorage.removeItem("docpilot_active_id");
+              }}
+              className="w-full rounded-xl bg-slate-900 text-white py-2 text-sm font-medium"
+            >
+              + New Chat
+            </button>
+          </div>      
+
+
           <p className="text-xs font-semibold text-slate-500 mb-2">
             Library ({library.length})
           </p>
@@ -963,62 +982,50 @@ export default function Home() {
 
                   {showActions && (
 
-                    <div className="absolute bottom-14 left-0 z-50 w-56 bg-white border rounded-xl shadow-lg p-3">
-                  
+//                    <div className="absolute bottom-14 left-0 z-50 w-56 bg-white border rounded-xl shadow-lg p-3">
+
+                    <div className="space-y-2">
+                    
+                      {/* Upload */}
                       <label className="block cursor-pointer text-sm border p-2 rounded">
                         Upload file
                         <input
                           type="file"
                           className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                  
-                            const formData = new FormData();
-                            formData.append("file", file);
-                  
-                            const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
-                              method: "POST",
-                              body: formData,
-                            });
-                  
-                            const data = await res.json();
-                  
-                            // ✅ ADD THESE 3 LINES HERE
-                            setFileName(data.filename);
-                            setDocumentText(data.document_text);
-                            setSummary(data.summary);
-
-
-                            const newItem: LibraryItem = {
-                              id: crypto.randomUUID(),
-                              name: data.filename,
-                              type: "TXT", // ✅ must match union type
-                              status: "Analyzed",
-                              summary: data.summary,
-                              documentText: data.document_text,
-                              chatHistory: [
-                                {
-                                  role: "assistant",
-                                  content: `Here’s a quick overview:\n\n${data.summary}`,
-                                  sourceType: "document", // ✅ must match union type
-                                },
-                              ],
-                            };
-                  
-                            setLibrary((prev) => [newItem, ...prev]);
-                            setActiveId(newItem.id);
-                  
-                            // reset chat
-                            setQuestion("");
-                            setAnswer("");
-                            setStreamingText("");
-                  
-                            setShowActions(false);
-                          }}
+                          onChange={handleCameraUpload} // reuse or your upload logic
                         />
                       </label>
-                  
+                    
+                      {/* URL */}
+                      <button
+                        onClick={() => {
+                          const url = prompt("Enter YouTube or Website URL");
+                          if (url) {
+                            setUrlInput(url);
+                            handleUrlAnalyze();
+                          }
+                          setShowActions(false);
+                        }}
+                        className="w-full text-left text-sm border p-2 rounded"
+                      >
+                        Add URL
+                      </button>
+                    
+                      {/* Paste */}
+                      <button
+                        onClick={() => {
+                          const text = prompt("Paste your text");
+                          if (text) {
+                            setPastedText(text);
+                            handlePasteAnalyze();
+                          }
+                          setShowActions(false);
+                        }}
+                        className="w-full text-left text-sm border p-2 rounded"
+                      >
+                        Paste Text
+                      </button>
+                    
                     </div>
 
                   )}
