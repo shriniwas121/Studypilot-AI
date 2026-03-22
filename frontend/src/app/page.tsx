@@ -220,6 +220,7 @@ export default function Home() {
         type = "WEB";
       }
   
+
       const res = await fetch(endpoint, {
         method: "POST",
         body: formData,

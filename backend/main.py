@@ -832,7 +832,7 @@ async def ask(
    
     print("SIMILARITY SCORE:", max_score)
     
-    if max_score < 0.04:
+    if max_score < 0.03:
         source_type = "external"
     else:
         source_type = "document"
