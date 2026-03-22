@@ -876,7 +876,7 @@ async def ask(
                 "source_type": "none"
             }
     
-    # ✅ ADD THIS (OUTSIDE IF BLOCK)
+    # ✅ DEFAULT (THIS WAS MISSING BEFORE)
     else:
         source_type = "document"
 
