@@ -1105,15 +1105,50 @@ export default function Home() {
                       : "Send"}
                   </button>
 
-                
                   {/* SPEAK */}
                   <button
-                    onClick={() => { /* keep existing */ }}
+                    onClick={() => {
+                      const SpeechRecognition =
+                        (window as any).SpeechRecognition ||
+                        (window as any).webkitSpeechRecognition;
+                  
+                      if (!SpeechRecognition) {
+                        alert("Speech recognition not supported in this browser");
+                        return;
+                      }
+                  
+                      const recognition = new SpeechRecognition();
+                  
+                      recognition.lang =
+                        selectedLanguage === "hindi" ? "hi-IN" :
+                        selectedLanguage === "telugu" ? "te-IN" :
+                        selectedLanguage === "french" ? "fr-FR" :
+                        selectedLanguage === "german" ? "de-DE" :
+                        "en-AU";
+                  
+                      recognition.start();
+                      setIsListening(true);
+                  
+                      recognition.onresult = (event: any) => {
+                        const transcript = event.results[0][0].transcript;
+                        setQuestion(transcript);   // ✅ THIS FILLS INPUT BOX
+                        setIsListening(false);
+                      };
+                  
+                      recognition.onerror = () => {
+                        setIsListening(false);
+                        alert("Mic failed");
+                      };
+                  
+                      recognition.onend = () => {
+                        setIsListening(false);
+                      };
+                    }}
                     className="h-12 rounded-xl border px-3 text-xs shrink-0"
                   >
-                    {isListening ? "🎙" : "🎤"}
+                    {isListening ? "🎙 Listening..." : "🎤"}
                   </button>
-                
+
                 </div>
 
 
