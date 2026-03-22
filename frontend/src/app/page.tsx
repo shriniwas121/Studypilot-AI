@@ -103,7 +103,7 @@ export default function Home() {
   
       const formData = new FormData();
       formData.append("question", userQuestion);
-      formData.append("document_text", docText");
+      formData.append("document_text", docText);
       formData.append("chat_history", chatHistoryText);
   
 
