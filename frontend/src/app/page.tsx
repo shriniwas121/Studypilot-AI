@@ -202,6 +202,7 @@ export default function Home() {
       if (!urlInput.trim()) return;
   
       setIsUploading(true);
+      setAnswer("");
       setQuestion("");
   
       const formData = new FormData();
