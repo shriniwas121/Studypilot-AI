@@ -85,14 +85,16 @@ export default function Home() {
       //   return;
       // }
 
-      const hasDocument = !!documentText;
+
 
 
       setIsAsking(true);
   
       const userQuestion = question;
-  
       const activeItem = library.find((item) => item.id === activeId);
+      const docText = activeItem?.documentText || "";
+
+  
   
       const chatHistoryText =
         activeItem?.chatHistory
@@ -101,7 +103,7 @@ export default function Home() {
   
       const formData = new FormData();
       formData.append("question", userQuestion);
-      formData.append("document_text", hasDocument ? documentText : "");
+      formData.append("document_text", docText");
       formData.append("chat_history", chatHistoryText);
   
 
@@ -129,13 +131,13 @@ export default function Home() {
 
       if (selectedLanguage !== "english") {
         try {
-          const formData = new FormData();
-          formData.append("text", data.answer);
-          formData.append("language", selectedLanguage);
-      
+          const translateFormData = new FormData();
+          translateFormData.append("text", data.answer);
+          translateFormData.append("language", selectedLanguage);
+
           const translateRes = await fetch("https://studypilot-backend-f5td.onrender.com/translate", {
             method: "POST",
-            body: formData,
+            body: translateFormData,
           });
       
           const t = await translateRes.json();
@@ -149,6 +151,7 @@ export default function Home() {
         }
       }
 
+      if (selectedLanguage !== "english") {
  
       // ✅ RESET BEFORE START
       setStreamingText("");

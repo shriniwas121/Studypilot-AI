@@ -808,6 +808,9 @@ async def ask(
     client = get_client()
     deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
 
+    print("FRONTEND KEY:", request.headers.get("x-api-key"))
+    print("BACKEND KEY:", os.getenv("APP_API_KEY"))
+
 
     # 🔥 STEP 1: Check if question is related to document
     doc_relevance_score, question_embedding = is_question_related_to_document(question, document_text)
@@ -815,7 +818,7 @@ async def ask(
     print("DOC RELEVANCE:", doc_relevance_score)
     
     # ❌ If NOT related → STOP
-    if doc_relevance_score < 0.10:
+    if doc_relevance_score < 0.03:
         return {
             "answer": "This question is not related to the uploaded document. Please ask something relevant to the document.",
             "source_type": "none"
@@ -829,7 +832,7 @@ async def ask(
    
     print("SIMILARITY SCORE:", max_score)
     
-    if max_score < 0.10:
+    if max_score < 0.05:
         source_type = "external"
     else:
         source_type = "document"
