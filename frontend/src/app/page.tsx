@@ -123,23 +123,42 @@ export default function Home() {
       }
   
       const data = await res.json();
-  
-      const fullText = data.answer;
-      const sourceType = data.source_type || "none";
-  
+
+      let fullText = data.answer;
+      const sourceType = data.source_type || "none";      
+
+      if (selectedLanguage !== "english") {
+        try {
+          const formData = new FormData();
+          formData.append("text", data.answer);
+          formData.append("language", selectedLanguage);
+      
+          const res = await fetch("https://studypilot-backend-f5td.onrender.com/translate", {
+            method: "POST",
+            body: formData,
+          });
+      
+          const t = await res.json();
+          fullText = t.translated_text || data.answer;
+      
+        } catch (err) {
+          console.error("Translation failed");
+        }
+      }
+
+ 
       // ✅ RESET BEFORE START
       setStreamingText("");
-  
+      
       let i = 0;
-  
+      
       const interval = setInterval(() => {
         setStreamingText((prev) => prev + fullText[i]);
         i++;
-  
+      
         if (i >= fullText.length) {
           clearInterval(interval);
-  
-          // ✅ SAVE FINAL MESSAGE
+      
           setLibrary((prev) =>
             prev.map((item) =>
               item.id === activeId
@@ -150,7 +169,7 @@ export default function Home() {
                       { role: "user", content: userQuestion },
                       {
                         role: "assistant",
-                        content: fullText,
+                        content: fullText,   // ✅ USE TRANSLATED TEXT HERE
                         sourceType: sourceType,
                       },
                     ],
@@ -158,12 +177,11 @@ export default function Home() {
                 : item
             )
           );
-  
-          // ✅ CRITICAL FIX (THIS WAS MISSING)
+      
           setStreamingText("");
         }
       }, 15);
- 
+
       setQuestion("");
     } catch (err) {
       console.error(err);
@@ -682,7 +700,7 @@ export default function Home() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-slate-100 text-slate-900">
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-100 text-slate-900">
   
       {/* ✅ OVERLAY (OUTSIDE ASIDE) */}
 
@@ -1035,7 +1053,7 @@ export default function Home() {
                 </div>
 
               </div>
-              <div className="mt-4 shrink-0 sticky bottom-0 bg-white pt-2">
+              <div className="mt-4 shrink-0 sticky bottom-0 bg-white pt-2 z-10">
 
                 <div className="flex items-center gap-2 relative">
                 

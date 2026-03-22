@@ -603,6 +603,59 @@ async def translate_and_speak(
         return {"error": str(e)}
 
 
+@app.post("/translate")
+async def translate(
+    text: str = Form(...),
+    language: str = Form(...)
+):
+    try:
+        lang_map = {
+            "english": "en",
+            "hindi": "hi",
+            "telugu": "te",
+            "french": "fr",
+            "german": "de",
+        }
+
+        target_lang = lang_map.get(language.lower(), "en")
+
+        if target_lang == "en":
+            return {"translated_text": text}
+
+        endpoint = os.getenv("AZURE_TRANSLATOR_ENDPOINT")
+        key = os.getenv("AZURE_TRANSLATOR_KEY")
+
+        url = f"{endpoint}/translate?api-version=3.0&to={target_lang}"
+
+        headers = {
+            "Ocp-Apim-Subscription-Key": key,
+            "Ocp-Apim-Subscription-Region": "australiaeast",
+            "Content-Type": "application/json"
+        }
+
+        body = [{"text": text}]
+
+        response = requests.post(
+            url,
+            headers=headers,
+            json=body,
+            timeout=5
+        )
+
+        data = response.json()
+
+        if response.status_code != 200 or not data:
+            print("TRANSLATION FAILED:", data)
+            return {"translated_text": text}
+
+        translated_text = data[0]["translations"][0]["text"]
+
+        return {"translated_text": translated_text}
+
+    except Exception as e:
+        print("TRANSLATE ERROR:", str(e))
+        return {"translated_text": text}
+
 @app.post("/summarize-text")
 async def summarize_text(text: str = Form(...)):
     if not text.strip():
@@ -862,6 +915,7 @@ async def ask(
               },
             ],
             temperature=0.1,
+            max_tokens=300,
         )
 
     answer = response.choices[0].message.content or "No answer returned."
