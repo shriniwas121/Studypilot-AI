@@ -832,13 +832,36 @@ async def ask(
    
     print("SIMILARITY SCORE:", max_score)
     
-    if max_score < 0.05:
+    if max_score < 0.03:
         source_type = "external"
     else:
         source_type = "document"
+
+
+    # ✅ detect conversational intent using GPT (MUST BE BEFORE RESPONSE LOGIC)
+
+    simple_phrases = ["thanks", "thank you", "ok", "cool", "great", "nice", "got it"]
+    
+    if question.strip().lower() in simple_phrases:
+        return {
+            "answer": f"{question.capitalize()} 😊",
+            "source_type": "external"
+        }
+
+
+    intent = intent_check.choices[0].message.content.strip().lower()
+    
+    if "casual" in intent:
+        return {
+            "answer": "😊 Got it!",
+            "source_type": "external"
+        }
+
+
     
     # ✅ RESPONSE
     if source_type == "external":
+
         response = client.chat.completions.create(
             model=deployment_name,
             messages=[
