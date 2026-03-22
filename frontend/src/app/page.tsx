@@ -814,7 +814,7 @@ export default function Home() {
 
         <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
 
-          <section className="flex flex-col w-full max-w-7xl mx-auto h-full rounded-3xl bg-white p-4 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
+          <section className="flex flex-col w-full max-w-7xl mx-auto h-full rounded-2xl bg-white p-3 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Chat with content</h3>
@@ -881,7 +881,7 @@ export default function Home() {
 
             <div className="flex flex-1 flex-col min-h-0">
 
-              <div className="flex-1 h-full min-h-0 overflow-y-auto rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <div className="flex-1 h-full min-h-0 overflow-y-auto rounded-2xl bg-slate-50 p-4 pb-28 ring-1 ring-slate-200">
 
                 <div className="space-y-4">
                 
@@ -1035,7 +1035,7 @@ export default function Home() {
                 </div>
 
               </div>
-              <div className="mt-4 shrink-0">
+              <div className="mt-4 shrink-0 sticky bottom-0 bg-white pt-2">
 
                 <div className="flex items-center gap-2 relative">
                 
