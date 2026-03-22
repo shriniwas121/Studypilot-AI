@@ -133,12 +133,15 @@ export default function Home() {
           formData.append("text", data.answer);
           formData.append("language", selectedLanguage);
       
-          const res = await fetch("https://studypilot-backend-f5td.onrender.com/translate", {
+          const translateRes = await fetch("https://studypilot-backend-f5td.onrender.com/translate", {
             method: "POST",
             body: formData,
           });
       
-          const t = await res.json();
+          const t = await translateRes.json();
+      
+          console.log("🌍 TRANSLATION RESPONSE:", t);   // ✅ ADD HERE
+      
           fullText = t.translated_text || data.answer;
       
         } catch (err) {
@@ -700,7 +703,7 @@ export default function Home() {
 
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-100 text-slate-900">
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-100 text-slate-900">
   
       {/* ✅ OVERLAY (OUTSIDE ASIDE) */}
 
