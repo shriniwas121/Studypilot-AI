@@ -793,6 +793,18 @@ async def ask(
     if request.headers.get("x-api-key") != os.getenv("APP_API_KEY"):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+
+
+    # ✅ CASUAL CHAT (PUT EXACTLY HERE)
+    simple_phrases = ["thanks", "thank you", "ok", "cool", "great", "nice", "got it"]
+    
+    if question.strip().lower() in simple_phrases:
+        return {
+            "answer": f"{question.capitalize()} 😊",
+            "source_type": "external"
+        }
+
+
     # 🛑 INPUT LIMIT (ADD HERE)
     if len(question) > 500:
         raise HTTPException(status_code=400, detail="Question too long")
@@ -801,9 +813,10 @@ async def ask(
     # 🛑 EMPTY DOCUMENT CHECK (ADD HERE)
     if not document_text or not document_text.strip():
         return {
-            "answer": "No document content available. Please upload a valid document.",
+            "answer": "No document uploaded. Please upload content first.",
             "source_type": "none"
         }
+
 
     client = get_client()
     deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
@@ -832,33 +845,43 @@ async def ask(
    
     print("SIMILARITY SCORE:", max_score)
     
+
+    # ✅ LOW RELEVANCE CASE
     if max_score < 0.03:
-        source_type = "external"
+    
+        classification = client.chat.completions.create(
+            model=deployment_name,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Classify this question into one of these categories: general, document, irrelevant. Answer ONLY one word."
+                },
+                {
+                    "role": "user",
+                    "content": question
+                }
+            ],
+            temperature=0
+        )
+    
+        intent = classification.choices[0].message.content.strip().lower()
+    
+        print("INTENT:", intent)
+    
+        if "general" in intent:
+            source_type = "external"
+        else:
+            return {
+                "answer": "This question is not related to the uploaded document. Please ask something relevant.",
+                "source_type": "none"
+            }
+    
+    # ✅ ADD THIS (OUTSIDE IF BLOCK)
     else:
         source_type = "document"
 
 
-    # ✅ detect conversational intent using GPT (MUST BE BEFORE RESPONSE LOGIC)
 
-    simple_phrases = ["thanks", "thank you", "ok", "cool", "great", "nice", "got it"]
-    
-    if question.strip().lower() in simple_phrases:
-        return {
-            "answer": f"{question.capitalize()} 😊",
-            "source_type": "external"
-        }
-
-
-    intent = intent_check.choices[0].message.content.strip().lower()
-    
-    if "casual" in intent:
-        return {
-            "answer": "😊 Got it!",
-            "source_type": "external"
-        }
-
-
-    
     # ✅ RESPONSE
     if source_type == "external":
 
