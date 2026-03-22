@@ -151,8 +151,6 @@ export default function Home() {
         }
       }
 
-      if (selectedLanguage !== "english") {
- 
       // ✅ RESET BEFORE START
       setStreamingText("");
       
@@ -175,7 +173,7 @@ export default function Home() {
                       { role: "user", content: userQuestion },
                       {
                         role: "assistant",
-                        content: fullText,   // ✅ USE TRANSLATED TEXT HERE
+                        content: fullText,
                         sourceType: sourceType,
                       },
                     ],
@@ -187,8 +185,10 @@ export default function Home() {
           setStreamingText("");
         }
       }, 15);
-
+      
       setQuestion("");
+
+
     } catch (err) {
       console.error(err);
       setAnswer("Question failed. Check backend terminal.");

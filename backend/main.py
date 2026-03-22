@@ -818,7 +818,7 @@ async def ask(
     print("DOC RELEVANCE:", doc_relevance_score)
     
     # ❌ If NOT related → STOP
-    if doc_relevance_score < 0.03:
+    if doc_relevance_score < 0.01 and not chat_history:
         return {
             "answer": "This question is not related to the uploaded document. Please ask something relevant to the document.",
             "source_type": "none"
