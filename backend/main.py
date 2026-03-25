@@ -892,7 +892,30 @@ async def ask(
                     "role": "system",
                     "content": "You are a helpful assistant. Use chat history to understand follow-up questions and answer clearly step-by-step."
                 },
+                {
+                    "role": "user",
+                    "content": f"""
+            Chat History:
+            {chat_history}
+            
+            Current Question:
+            {question}
+            
+            
+            Answer naturally using the document:
 
+            - Be clear and concise
+
+            - Use document context properly
+
+            - No strict format
+            
+            
+            Example:
+            (if applicable)
+            
+            """
+                },
             ],
             temperature=0.3,
         )
@@ -908,7 +931,31 @@ async def ask(
                 "role": "system",
                 "content": "You are a helpful assistant. Use chat history and document context to answer follow-up questions correctly."
               },
+              {
+                "role": "user",
+                "content": f"""
+            Chat History:
+            {chat_history}
+            
+            Document Context:
+            {context_text}
+            
+            Current Question:
+            {question}
+            
+            Answer naturally using the document:
 
+            - Be clear and concise
+
+            - Use document context properly
+
+            - No strict format
+            
+            Example:
+            (if applicable)
+
+            """
+              },
             ],
             temperature=0.1,
             max_tokens=300,
