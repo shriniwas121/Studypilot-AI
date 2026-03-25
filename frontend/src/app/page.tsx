@@ -114,7 +114,6 @@ export default function Home() {
           "x-api-key": process.env.NEXT_PUBLIC_API_KEY!,
         },
         body: formData,
-        body: formData,
       });
 
 
