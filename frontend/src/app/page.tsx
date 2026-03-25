@@ -79,14 +79,6 @@ export default function Home() {
         return;
       }
       
-      // ✅ Normal Q&A needs document
-      // if (!documentText) {
-      //   alert("Please upload or add content first.");
-      //   return;
-      // }
-
-
-
 
       setIsAsking(true);
   
