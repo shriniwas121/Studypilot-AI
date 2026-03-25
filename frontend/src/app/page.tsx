@@ -44,7 +44,7 @@ export default function Home() {
   const [pastedText, setPastedText] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
-
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   const getSafeData = (data: any, fallbackText = "") => {
     const safeSummary =
@@ -108,13 +108,16 @@ export default function Home() {
   
 
       console.log("Sending request...");
-      const res = await fetch("https://studypilot-backend-f5td.onrender.com/ask", {
+      const res = await fetch(`${API}/ask`, {
         method: "POST",
         headers: {
-          "x-api-key": "insightxai-10821",
+          "x-api-key": process.env.NEXT_PUBLIC_API_KEY!,
         },
         body: formData,
+        body: formData,
       });
+
+
 
       console.log("Response status:", res.status);
 
@@ -135,7 +138,7 @@ export default function Home() {
           translateFormData.append("text", data.answer);
           translateFormData.append("language", selectedLanguage);
 
-          const translateRes = await fetch("https://studypilot-backend-f5td.onrender.com/translate", {
+          const translateRes = await fetch(`${API}/translate`, {
             method: "POST",
             body: translateFormData,
           });
@@ -212,11 +215,11 @@ export default function Home() {
   
       if (urlInput.includes("youtube.com") || urlInput.includes("youtu.be")) {
         formData.append("video_url", urlInput);
-        endpoint = "https://studypilot-backend-f5td.onrender.com/summarize-video";
+        endpoint = `${API}/summarize-video`;
         type = "VIDEO";
       } else {
         formData.append("website_url", urlInput);
-        endpoint = "https://studypilot-backend-f5td.onrender.com/summarize-website";
+        endpoint = `${API}/summarize-website`;
         type = "WEB";
       }
   
@@ -290,7 +293,7 @@ export default function Home() {
       formData.append("text", pastedText);
 
 
-      const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize-text", {
+      const res = await fetch(`${API}/summarize-text`, {
         method: "POST",
         body: formData,
       });
@@ -353,7 +356,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
   
-      const res = await fetch("https://studypilot-backend-f5td.onrender.com/summarize", {
+      const res = await fetch(`${API}/summarize`, {
         method: "POST",
         body: formData,
       });
@@ -410,7 +413,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
   
-      const res = await fetch("https://studypilot-backend-f5td.onrender.com/ocr", {
+      const res = await fetch(`${API}/ocr`, {
         method: "POST",
         body: formData,
       });
@@ -644,7 +647,7 @@ export default function Home() {
           setIsUploading(true);
   
           try {
-            const res = await fetch("https://studypilot-backend-f5td.onrender.com/ocr", {
+            const res = await fetch(`${API}/ocr`, {
               method: "POST",
               body: formData,
             });
@@ -972,7 +975,7 @@ export default function Home() {
                                     formData.append("text", msg.content);
                                     formData.append("language", selectedLanguage);
                               
-                                    const res = await fetch("https://studypilot-backend-f5td.onrender.com/translate-and-speak", {
+                                    const res = await fetch(`${API}/translate-and-speak`, {
                                       method: "POST",
                                       body: formData,
                                     });
