@@ -835,10 +835,8 @@ export default function Home() {
 
           <section className="flex flex-col w-full max-w-7xl mx-auto h-full rounded-2xl bg-white p-3 md:p-6 shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
- //             <div>
                 <h3 className="text-lg font-semibold">Chat with content</h3>
                 <p className="text-sm text-slate-500">Grounded Q&A for the selected item</p>
- //             </div>
 
               {/* 🌍 LANGUAGE DROPDOWN */}
               <select
