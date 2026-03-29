@@ -331,7 +331,6 @@ export default function Home() {
 
 
   const handlePasteAnalyze = async (inputText?: string) => {
-    const text = inputText || question;
 
     const text = inputText || pastedText;
     if (!text.trim()) return;
