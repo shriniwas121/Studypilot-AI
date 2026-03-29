@@ -635,8 +635,8 @@ export default function Home() {
 
         const questions = content.split(/\n(?=Question:)/);
         
-        const parsed = questions.map((block) => {
-          const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        const parsed = questions.map((block: string) => {
+          const lines = block.split("\n").map((l: string) => l.trim()).filter(Boolean);
         
           const question = lines[0];
         
