@@ -333,14 +333,14 @@ export default function Home() {
   const handlePasteAnalyze = async (inputText?: string) => {
     const text = inputText || question;
 
-
-    if (!pastedText.trim()) return;
+    const text = inputText || pastedText;
+    if (!text.trim()) return;
   
     try {
       setIsUploading(true);
   
       const formData = new FormData();
-      formData.append("text", pastedText);
+      formData.append("text", text);
   
       const res = await fetch(`${API}/summarize-text`, {
         method: "POST",
@@ -460,11 +460,11 @@ export default function Home() {
   
       // ✅ LONG TEXT → PASTE ANALYSIS
       if (question.includes("\n") || question.length > 120) {
-        const handlePasteAnalyze = async (text: string) => {
+        await handlePasteAnalyze(question);
         setQuestion("");
         return;
       }
-  
+
       setIsAsking(true);
   
       const userQuestion = question;
