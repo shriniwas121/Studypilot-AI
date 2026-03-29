@@ -32,6 +32,7 @@ export default function Home() {
   const [answer, setAnswer] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
+  const [isMessages, setMessages] = useState(false);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
