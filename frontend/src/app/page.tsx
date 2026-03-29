@@ -668,7 +668,7 @@ export default function Home() {
 
         });
         
-        const cleaned = parsed.filter(q => q.options && q.options.length >= 4);
+        const cleaned = parsed.filter((q: any) => q.options && q.options.length >= 4);
 
         console.log("QUIZ DATA:", cleaned);
 
