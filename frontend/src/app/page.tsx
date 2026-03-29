@@ -460,7 +460,7 @@ export default function Home() {
   
       // ✅ LONG TEXT → PASTE ANALYSIS
       if (question.includes("\n") || question.length > 120) {
-        await handlePasteAnalyze(question);
+        const handlePasteAnalyze = async (text: string) => {
         setQuestion("");
         return;
       }
