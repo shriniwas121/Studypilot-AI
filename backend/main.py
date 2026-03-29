@@ -690,6 +690,133 @@ async def summarize_text(text: str = Form(...)):
     }
 
 
+@app.post("/key-concepts")
+async def key_concepts(text: str = Form(...)):
+    client = get_client()
+
+    response = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[
+            {"role": "system", "content": "Extract key concepts clearly."},
+            {
+                "role": "user",
+                "content": f"""
+Extract key concepts from this content.
+
+Format:
+- Concept
+- Short explanation
+
+Text:
+{text[:12000]}
+"""
+            }
+        ],
+        temperature=0.2,
+    )
+
+    return {"result": response.choices[0].message.content}
+
+
+@app.post("/practice-questions")
+async def practice_questions(text: str = Form(...)):
+    client = get_client()
+
+    response = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[
+            {"role": "system", "content": "Generate practice questions."},
+            {
+                "role": "user",
+                "content": f"""
+Generate at least 10-15 practice questions from the following content.
+
+Rules:
+- Questions can be slightly beyond document but MUST stay relevant
+- Include conceptual + application + scenario questions
+- Do NOT limit to 5
+- Use clear formatting
+
+Content:
+
+Text:
+{text[:12000]}
+"""
+            }
+        ],
+        temperature=0.3,
+    )
+
+    return {"result": response.choices[0].message.content}
+
+@app.post("/mock-test")
+async def mock_test(text: str = Form(...)):
+    client = get_client()
+
+    response = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[
+
+            {
+                "role": "system",
+                "content": """
+You are a strict exam generator.
+
+You MUST follow this EXACT format.
+
+FORMAT:
+
+Question: <question text>
+A) <option>
+B) <option>
+C) <option>
+D) <option>
+Answer: <A/B/C/D>
+Explanation: <short explanation>
+
+Rules:
+- EXACTLY 4 options only
+- NO markdown, NO bullets, NO numbering
+- Each question separated by ONE blank line
+
+Generate questions based on document length:
+
+- Small document → 8–12 questions
+- Medium document → 15–25 questions
+- Large document → 25–40 questions
+
+Cover ALL important topics.
+
+"""
+            },
+
+            {
+                "role": "user",
+                "content": f"""
+Generate MCQs strictly from this document.
+
+Text:
+{text[:12000]}
+"""
+            }
+        ],
+        temperature=0.2,   # 🔥 LOWER = MORE STRICT
+    )
+
+    raw = response.choices[0].message.content or ""
+
+    # 🔥 CLEAN OUTPUT
+    cleaned = re.sub(r"\*\*|###|##|#", "", raw)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+
+    # 🔥 DEBUG (VERY IMPORTANT)
+    print("MOCK OUTPUT:\n", cleaned[:1000])
+
+    return {"result": cleaned}
+
+
+
+
 @app.post("/vision-analyze")
 async def vision_analyze(file: UploadFile = File(...)):
     try:
@@ -810,12 +937,25 @@ async def ask(
         raise HTTPException(status_code=400, detail="Question too long")
 
 
-    # 🛑 EMPTY DOCUMENT CHECK (ADD HERE)
     if not document_text or not document_text.strip():
+        # ✅ ALLOW GENERAL CHAT
+        client = get_client()
+    
+        response = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[
+                {"role": "system", "content": "You are a helpful study assistant. If document exists, answer based on it. Otherwise answer normally."},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.3,
+        )
+    
         return {
-            "answer": "No document uploaded. Please upload content first.",
-            "source_type": "none"
+            "answer": response.choices[0].message.content,
+            "source_type": "external"
         }
+
+
 
 
     client = get_client()

@@ -1248,35 +1248,66 @@ export default function Home() {
 
                       {!activeId && (
 
-                        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-                          <div className="mb-1">
-                            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-blue-600 rounded-3xl flex items-center justify-center text-6xl shadow-2xl">
-                              📚
+                        <div className="mb-4 p-8 rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 border-blue-200 text-center">
+                        
+                          {/* ICON */}
+                          <div className="text-4xl mb-3">📚</div>
+                        
+                          {/* TITLE */}
+                          <div className="text-xl font-semibold text-slate-800 mb-2">
+                            Your AI Study Assistant is ready
+                          </div>
+                        
+                          {/* SUBTEXT */}
+                          <p className="text-sm text-slate-800 mb-4">
+                            Upload a document, paste text, drop a URL, or even paste a screenshot to start learning, practicing, and testing yourself instantly.
+                          </p>
+                        
+                          {/* FEATURE HIGHLIGHTS */}
+                          <div className="flex flex-wrap justify-center gap-2 text-xs mb-4">
+                            <span className="px-3 py-1 bg-white border rounded-full">🧠 Smart summaries</span>
+                            <span className="px-3 py-1 bg-white border rounded-full">💡 Key concepts</span>
+                            <span className="px-3 py-1 bg-white border rounded-full">📝 Practice questions</span>
+                            <span className="px-3 py-1 bg-white border rounded-full">🎯 Mock tests</span>
+                          </div>
+                        
+                          {/* ACTION OPTIONS */}
+
+                          <div className="flex flex-col items-center gap-2 text-xs text-slate-500">
+                         
+                            {/* FILE */}
+                            <button
+                              onClick={() => document.getElementById("fileUpload")?.click()}
+                              className="flex items-center gap-3 px-2 py-2 rounded-full 
+                                         bg-green-50 border border-green-150 
+                                         hover:bg-green-100 transition"
+                            >
+                              <span className="text-3xl">📎</span>
+                              <span className="text-lg font-medium text-green-800">Upload file</span>
+                            </button>
+
+                         
+                          </div>
+
+                        
+                          <div className="mt-5">
+                            <p className="text-xs text-slate-500 mb-2">
+                              
+                            </p>
+
+                            <p className="text-sm text-slate-500 mt-2 text-center">
+                              
+                            </p>
+                            <p>
+                            </p>
+                          
+                            <div className="mt-6 p-3 rounded-xl bg-yellow-50 border text-xs text-slate-600">
+                              📌 Add content to begin — then ask anything related to content, explore concepts, and dive deeper beyond your document.
                             </div>
+
                           </div>
-        
-                          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to StudyPilot</h1>
-                          <p className="text-xl text-slate-600 mb-5 max-w-md">
-                            Your intelligent study companion that turns notes into knowledge
-                          </p>
-        
-                          <div className="grid grid-cols-2 gap-4 mb-10 w-full max-w-xs mx-auto">
-                            <div className="bg-white p-4 rounded-2xl border shadow-sm text-sm">📝 Smart Summaries</div>
-                            <div className="bg-white p-4 rounded-2xl border shadow-sm text-sm">🧠 Key Concepts</div>
-                            <div className="bg-white p-4 rounded-2xl border shadow-sm text-sm">❓ Practice Questions</div>
-                            <div className="bg-white p-4 rounded-2xl border shadow-sm text-sm">🎯 Mock Tests</div>
-                          </div>
-        
-                          <button
-                            onClick={() => document.getElementById("fileUpload")?.click()}
-                            className="w-full max-w-xs bg-slate-900 hover:bg-slate-800 transition-colors text-white font-semibold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 text-lg shadow-lg"
-                          >
-                            📎 Upload Your Study Material
-                          </button>
-        
-                          <p className="text-xs text-slate-500 mt-6">
-                            Supports PDF • Images • Text • URLs • Screenshots
-                          </p>
+
+
                         </div>
 
                       )}
@@ -1636,7 +1667,7 @@ export default function Home() {
                           }
                         }}
                         className="h-12 flex-1 rounded-xl border px-4 text-sm"
-                        placeholder="Paste text, drop a URL, or even paste a screenshot..."
+                        placeholder="Ask question, paste text, enter URL, or paste a screenshot..."
                       />
   
                       <button
