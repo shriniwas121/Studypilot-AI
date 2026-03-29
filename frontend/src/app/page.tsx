@@ -11,7 +11,7 @@ type ChatMessage = {
 type LibraryItem = {
   id: string;
   name: string;
-  type: "PDF" | "TXT" | "SAS" | "VIDEO" | "WEB";
+  type: "PDF" | "TXT" | "SAS" | "VIDEO" | "WEB" | "WORD";
   status: "Ready" | "Analyzed";
   summary: string;
   documentText: string;
@@ -70,13 +70,32 @@ export default function Home() {
   
       setLibrary(parsed);
   
-      const activeItem =
-        parsed.find(i => i.id === savedActiveId) || parsed[0];
-  
-      setActiveId(activeItem.id);
-      setFileName(activeItem.name);
-      setSummary(activeItem.summary);
-      setDocumentText(activeItem.documentText);
+      // const activeItem =
+      //   parsed.find(i => i.id === savedActiveId) || parsed[0];
+	  // 
+      // setActiveId(activeItem.id);
+      // setFileName(activeItem.name);
+      // setSummary(activeItem.summary);
+      // setDocumentText(activeItem.documentText);
+
+      setActiveId("");
+      setFileName("");
+      setSummary("");
+      setDocumentText("");
+      setQuestion("");
+      setAnswer("");
+      setStreamingText("");
+      setActiveTab("chat");
+      setTabContent("");
+      setTranslatedTabContent("");
+      setQuizData([]);
+      setQuizAnswers({});
+      setQuizScore(null);
+      setCurrentQ(0);
+      localStorage.removeItem("docpilot_active_id");
+
+
+
   
     } catch (err) {
       console.error("Restore failed", err);
@@ -98,7 +117,6 @@ export default function Home() {
 
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-      setIsUploading(true);
 
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -246,9 +264,10 @@ export default function Home() {
   };
 
 
-  const handleUrlAnalyze = async () => {
+  const handleUrlAnalyze = async (incomingUrl?: string) => {
     try {
-      if (!urlInput.trim()) return;
+      const finalUrl = (incomingUrl || urlInput).trim();
+      if (!finalUrl) return;
   
       setIsUploading(true);
       setAnswer("");
@@ -259,21 +278,28 @@ export default function Home() {
       let endpoint = "";
       let type: LibraryItem["type"] = "WEB";
   
-      if (urlInput.includes("youtube.com") || urlInput.includes("youtu.be")) {
-        formData.append("video_url", urlInput);
+      if (finalUrl.includes("youtube.com") || finalUrl.includes("youtu.be")) {
+        formData.append("video_url", finalUrl);
         endpoint = `${API}/summarize-video`;
         type = "VIDEO";
       } else {
-        formData.append("website_url", urlInput);
+        formData.append("website_url", finalUrl);
         endpoint = `${API}/summarize-website`;
         type = "WEB";
       }
   
-
+      console.log("Calling URL endpoint:", endpoint, "finalUrl:", finalUrl);
+  
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+  
       const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+  
+      clearTimeout(timeoutId);
   
       if (!res.ok) {
         const errorText = await res.text();
@@ -281,33 +307,42 @@ export default function Home() {
       }
   
       const data = await res.json();
+      console.log("URL API response:", data);
   
-      // ✅ IMPORTANT (keep UI synced)
-
+      if (!data || (!data.summary && !data.document_text && !data.text && !data.transcript && !data.content)) {
+        throw new Error("Empty URL response");
+      }
+  
       const safeSummary =
-        data.summary || data.document_text || data.text || "No summary available";
-      
+        data.summary ||
+        data.document_text ||
+        data.text ||
+        data.transcript ||
+        data.content ||
+        "No summary available";
+  
       const safeText =
-        data.document_text || data.text || "";
-      
+        data.document_text ||
+        data.text ||
+        data.transcript ||
+        data.content ||
+        "";
+  
       setSummary(safeSummary);
-      setFileName(data.filename || urlInput);
+      setFileName(data.filename || finalUrl);
       setDocumentText(safeText);
-
-
-
+  
       const newItem: LibraryItem = {
         id: crypto.randomUUID(),
-        name: urlInput,
+        name: finalUrl,
         type,
         status: "Analyzed",
         summary: safeSummary,
         documentText: safeText,
-
         chatHistory: [
           {
             role: "assistant",
-            content: `Here’s a quick overview:\n\n${data.summary || data.text}`,
+            content: `Here’s a quick overview:\n\n${safeSummary}`,
             sourceType: "document",
           },
         ],
@@ -315,20 +350,36 @@ export default function Home() {
   
       setLibrary((prev) => [newItem, ...prev]);
       setActiveId(newItem.id);
+      setActiveTab("chat");
+      setTabContent("");
+      setTranslatedTabContent("");
+      setQuizData([]);
+      setQuizAnswers({});
+      setQuizScore(null);
+      setCurrentQ(0);
+  
       setQuestion("");
       setAnswer("");
       setStreamingText("");
-
       setUrlInput("");
   
-    } catch (err) {
-      console.error(err);
-      setSummary("URL analysis failed. Check backend terminal.");
+      console.log("URL item created:", newItem);
+    } catch (err: any) {
+      console.error("handleUrlAnalyze failed:", err);
+  
+      if (err?.name === "AbortError") {
+        setSummary("URL request timed out. Backend URL analysis is hanging.");
+      } else {
+        setSummary("URL analysis failed. Check backend terminal.");
+      }
+  
+      setQuestion("");
+      setAnswer("");
+      setStreamingText("");
     } finally {
       setIsUploading(false);
     }
   };
-
 
   const handlePasteAnalyze = async (inputText?: string) => {
 
@@ -354,7 +405,7 @@ export default function Home() {
         type: "TXT",
         status: "Analyzed",
         summary: data.summary,
-        documentText: pastedText,
+        documentText: text,
         chatHistory: [
           {
             role: "assistant",
@@ -446,16 +497,26 @@ export default function Home() {
   const handleAsk = async () => {
     try {
       console.log("ASK MODE:", activeId ? "DOCUMENT" : "GENERAL");
+      
   
       if (!question.trim() || isAsking) return;
   
       // ✅ URL DETECTION
-      if (question.includes("http")) {
-        setUrlInput(question.trim());
+      const trimmed = question.trim();
+      
+      if (
+        trimmed.startsWith("http://") ||
+        trimmed.startsWith("https://") ||
+        trimmed.startsWith("www.")
+      ) {
+        const detectedUrl = trimmed.startsWith("www.") ? `https://${trimmed}` : trimmed;
+        console.log("URL detected:", detectedUrl);
+        setUrlInput(detectedUrl);
         setQuestion("");
-        await handleUrlAnalyze();
+        await handleUrlAnalyze(detectedUrl);
         return;
       }
+
   
       // ✅ LONG TEXT → PASTE ANALYSIS
       if (question.includes("\n") || question.length > 120) {
@@ -467,6 +528,21 @@ export default function Home() {
       setIsAsking(true);
   
       const userQuestion = question;
+  
+
+      if (!activeId) {
+        setMessages(prev => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "⚠️ Please upload a document, paste text, URL, or screenshot first.",
+            sourceType: "none"
+          }
+        ]);
+        setQuestion("");
+        return;
+      }
+
   
       // ✅ PUSH USER MESSAGE FIRST
       if (activeId) {
@@ -497,13 +573,22 @@ export default function Home() {
         : null;
   
       const isGeneralChat = !activeId;
+
+      if (!isGeneralChat && activeTab !== "chat" && activeTab !== "practice") {
+        alert("Questions are only supported in Chat and Practice tabs.");
+        return;
+      }
   
       const docText = isGeneralChat
         ? ""
-        : activeTab === "chat"
+        : activeTab === "chat " || " " 
+        : activeTab === "practice"
         ? activeItem?.documentText || ""
         : tabContent || activeItem?.documentText || "";
   
+
+
+
       const chatHistoryText = isGeneralChat
         ? ""
         : activeItem?.chatHistory
