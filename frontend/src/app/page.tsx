@@ -1443,7 +1443,7 @@ export default function Home() {
                                   <ReactMarkdown>
                                     {msg.role === "assistant" &&
                                      i === (activeId
-                                       ? library.find(item => item.id === activeId)?.chatHistory.length - 1
+                                       ? (library.find(item => item.id === activeId)?.chatHistory?.length ?? 0) - 1
                                        : generalChat.length - 1) &&
                                      isStreaming
                                       ? streamingText
