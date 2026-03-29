@@ -571,22 +571,20 @@ export default function Home() {
       const activeItem = activeId
         ? library.find((item) => item.id === activeId)
         : null;
-  
+      
       const isGeneralChat = !activeId;
-
+      
       if (!isGeneralChat && activeTab !== "chat" && activeTab !== "practice") {
         alert("Questions are only supported in Chat and Practice tabs.");
         return;
       }
-  
+      
       const docText = isGeneralChat
         ? ""
-        : activeTab === "chat " || " " 
         : activeTab === "practice"
-        ? activeItem?.documentText || ""
-        : tabContent || activeItem?.documentText || "";
+        ? tabContent || activeItem?.documentText || ""
+        : activeItem?.documentText || "";
   
-
 
 
       const chatHistoryText = isGeneralChat
