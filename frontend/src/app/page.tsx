@@ -330,7 +330,10 @@ export default function Home() {
   };
 
 
-  const handlePasteAnalyze = async () => {
+  const handlePasteAnalyze = async (inputText?: string) => {
+    const text = inputText || question;
+
+
     if (!pastedText.trim()) return;
   
     try {
