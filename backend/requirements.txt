@@ -10,3 +10,4 @@ azure-ai-documentintelligence
 azure-core
 azure-cognitiveservices-speech
 youtube-transcript-api
+python-docx
