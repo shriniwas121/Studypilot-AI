@@ -790,14 +790,23 @@ Cover ALL important topics.
 """
             },
 
+
             {
                 "role": "user",
                 "content": f"""
-Generate MCQs strictly from this document.
-
-Text:
-{text[:12000]}
-"""
+            Generate a mock test from this document.
+            
+            Rules:
+            - About 50% of questions must come directly from the document
+            - About 50% of questions may be external, but they MUST stay closely related to the same topic
+            - External questions should feel like natural extension questions a teacher might ask on the same lesson
+            - Do NOT generate unrelated general knowledge questions
+            - Keep all questions relevant to the uploaded document topic
+            - Mix easy, medium, and hard questions
+            
+            Text:
+            {text[:12000]}
+            """
             }
         ],
         temperature=0.2,   # 🔥 LOWER = MORE STRICT
@@ -971,7 +980,7 @@ async def ask(
     print("DOC RELEVANCE:", doc_relevance_score)
     
     # ❌ If NOT related → STOP
-    if doc_relevance_score < 0.01 and not chat_history:
+    if doc_relevance_score < 0.05:
         return {
             "answer": "This question is not related to the uploaded document. Please ask something relevant to the document.",
             "source_type": "none"
@@ -994,11 +1003,32 @@ async def ask(
             messages=[
                 {
                     "role": "system",
-                    "content": "Classify this question into one of these categories: general, document, irrelevant. Answer ONLY one word."
+                    "content": """
+    Classify this question into one of these categories:
+    - related_but_not_in_doc
+    - irrelevant
+    
+    Answer ONLY one of those exact labels.
+    
+
+    Use irrelevant when:
+    - the question changes to a different topic
+    - the question is casual/general chat
+    - the question is about coding, software, holidays, celebrities, current events, or anything not clearly part of the document topic
+    - the question is pasted junk text or random content not meaningfully tied to the document
+    
+    Be strict. If unsure, answer irrelevant.
+    """
                 },
                 {
                     "role": "user",
-                    "content": question
+                    "content": f"""
+    Question:
+    {question}
+    
+    Document excerpt:
+    {document_text[:2000]}
+    """
                 }
             ],
             temperature=0
@@ -1008,14 +1038,14 @@ async def ask(
     
         print("INTENT:", intent)
     
-        if "general" in intent:
+        if "related_but_not_in_doc" in intent:
             source_type = "external"
         else:
             return {
                 "answer": "This question is not related to the uploaded document. Please ask something relevant.",
                 "source_type": "none"
-            }
-    
+            }    
+
     # ✅ DEFAULT (THIS WAS MISSING BEFORE)
     else:
         source_type = "document"
@@ -1024,82 +1054,65 @@ async def ask(
 
     # ✅ RESPONSE
     if source_type == "external":
-
+    
         response = client.chat.completions.create(
             model=deployment_name,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant. Use chat history to understand follow-up questions and answer clearly step-by-step."
+                    "content": "You are a helpful study assistant. The question is related to the uploaded document topic, but the document may not contain the answer directly. Answer clearly and stay close to the document topic."
                 },
                 {
                     "role": "user",
                     "content": f"""
-            Chat History:
-            {chat_history}
-            
-            Current Question:
-            {question}
-            
-            
-            Answer naturally using the document:
-
-            - Be clear and concise
-
-            - Use document context properly
-
-            - No strict format
-            
-            
-            Example:
-            (if applicable)
-            
-            """
+    Chat History:
+    {chat_history}
+    
+    Current Question:
+    {question}
+    
+    Answer clearly and stay relevant to the uploaded document topic.
+    Do not drift into unrelated general knowledge.
+    """
                 },
             ],
             temperature=0.3,
         )
+    
     else:
         context_text = "\n\n---\n\n".join(relevant_context)
     
         response = client.chat.completions.create(
             model=deployment_name,
-
-
             messages=[
-              {
-                "role": "system",
-                "content": "You are a helpful assistant. Use chat history and document context to answer follow-up questions correctly."
-              },
-              {
-                "role": "user",
-                "content": f"""
-            Chat History:
-            {chat_history}
-            
-            Document Context:
-            {context_text}
-            
-            Current Question:
-            {question}
-            
-            Answer naturally using the document:
-
-            - Be clear and concise
-
-            - Use document context properly
-
-            - No strict format
-            
-            Example:
-            (if applicable)
-
-            """
-              },
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant. Use chat history and document context to answer follow-up questions correctly."
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+    Chat History:
+    {chat_history}
+    
+    Document Context:
+    {context_text}
+    
+    Current Question:
+    {question}
+    
+    Answer naturally using the document:
+    
+    - Be clear and concise
+    - Use document context properly
+    - No strict format
+    """
+                },
             ],
             temperature=0.1,
             max_tokens=300,
         )
+
 
     answer = response.choices[0].message.content or "No answer returned."
 

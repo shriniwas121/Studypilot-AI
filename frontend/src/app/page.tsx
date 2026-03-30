@@ -115,14 +115,19 @@ export default function Home() {
   }, [activeId]);
 
 
+
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-
       const items = e.clipboardData?.items;
       if (!items) return;
   
       for (const item of items) {
         if (item.type.includes("image")) {
+          if (activeId) {
+            alert("You are already inside a document. Click New Chat before using screenshot.");
+            return;
+          }
+  
           const blob = item.getAsFile();
           if (!blob) continue;
   
@@ -137,29 +142,26 @@ export default function Home() {
               body: formData,
             });
   
-
             if (!res.ok) {
               const errorText = await res.text();
               throw new Error(errorText);
             }
-
+  
             const ocrData = await res.json();
-            
+  
             const formData2 = new FormData();
             formData2.append("text", ocrData.document_text || ocrData.text || "");
-            
+  
             const summaryRes = await fetch(`${API}/summarize-text`, {
               method: "POST",
               body: formData2,
             });
-            
+  
             const summaryData = await summaryRes.json();
-            
+  
             const safeSummary = summaryData.summary;
             const safeText = ocrData.document_text || ocrData.text || "";
-
-            
-            
+  
             const newItem: LibraryItem = {
               id: crypto.randomUUID(),
               name: "Screenshot",
@@ -174,7 +176,6 @@ export default function Home() {
                   sourceType: "document",
                 },
               ],
-
             };
   
             setLibrary((prev) => [newItem, ...prev]);
@@ -182,22 +183,22 @@ export default function Home() {
             setQuestion("");
             setAnswer("");
             setStreamingText("");
-
-  
           } catch (err) {
             console.error(err);
             alert("Screenshot failed");
           } finally {
             setIsUploading(false);
           }
+  
+          break;
         }
       }
     };
   
-
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, []);
+  }, [API, activeId]);
+
 
 
   const cleanContent = useMemo(() => {
@@ -210,8 +211,29 @@ export default function Home() {
   // For now, I'm showing the structure. You must add them back.
 
   // Example placeholder (replace with your actual functions):
+
+  const preventNewSourceWhileInDoc = () => {
+    if (!activeId) return false;
+  
+    alert("You are already inside a document. Click New Chat before uploading, pasting, URL, or screenshot.");
+    return true;
+  };
+
+  const handleUploadButtonClick = () => {
+    if (activeId) {
+      alert("Click New Chat before uploading another file.");
+      return;
+    }
+  
+    document.getElementById("fileUpload")?.click();
+  };
+
   const handleFileUpload = async (e: any) => {
     try {
+
+      if (preventNewSourceWhileInDoc()) return;
+
+
       const file = e.target.files?.[0];
       if (!file) return;
   
@@ -266,6 +288,10 @@ export default function Home() {
 
   const handleUrlAnalyze = async (incomingUrl?: string) => {
     try {
+
+      if (preventNewSourceWhileInDoc()) return;
+
+
       const finalUrl = (incomingUrl || urlInput).trim();
       if (!finalUrl) return;
   
@@ -383,6 +409,9 @@ export default function Home() {
 
   const handlePasteAnalyze = async (inputText?: string) => {
 
+    if (preventNewSourceWhileInDoc()) return;
+
+
     const text = inputText || pastedText;
     if (!text.trim()) return;
   
@@ -430,6 +459,9 @@ export default function Home() {
 
   const handleCameraUpload = async (e: any) => {
     try {
+
+      if (preventNewSourceWhileInDoc()) return;
+
       const file = e.target.files?.[0];
       if (!file) return;
   
@@ -517,23 +549,32 @@ export default function Home() {
         return;
       }
 
-  
-      // ✅ LONG TEXT → PASTE ANALYSIS
-      if (question.includes("\n") || question.length > 120) {
-        await handlePasteAnalyze(question);
-        setQuestion("");
-        return;
-      }
 
       setIsAsking(true);
   
       const userQuestion = question;
-  
+
+      if (activeId && (question.includes("\n") || question.length > 180)) {
+        alert("Pasted long text is not allowed while chatting inside a document. Ask a question instead.");
+        return;
+      }  
+
 
       if (!activeId) {
         return;
       }
   
+      const activeItem = activeId
+        ? library.find((item) => item.id === activeId)
+        : null;
+      
+      const isGeneralChat = !activeId;
+      
+      if (!isGeneralChat && activeTab !== "chat" && activeTab !== "practice") {
+        alert("Questions are only supported in Chat and Practice tabs.");
+        return;
+      }
+
       // ✅ PUSH USER MESSAGE FIRST
       if (activeId) {
         setLibrary((prev) =>
@@ -557,17 +598,8 @@ export default function Home() {
           { role: "assistant", content: "" }, // 👈 placeholder
         ]);
       }
-  
-      const activeItem = activeId
-        ? library.find((item) => item.id === activeId)
-        : null;
-      
-      const isGeneralChat = !activeId;
-      
-      if (!isGeneralChat && activeTab !== "chat" && activeTab !== "practice") {
-        alert("Questions are only supported in Chat and Practice tabs.");
-        return;
-      }
+
+
       
       const docText = isGeneralChat
         ? ""
@@ -575,13 +607,18 @@ export default function Home() {
         ? tabContent || activeItem?.documentText || ""
         : activeItem?.documentText || "";
   
+      if (activeTab === "practice") {
+        setActiveTab("chat");
+      }
 
 
       const chatHistoryText = isGeneralChat
         ? ""
         : activeItem?.chatHistory
-            ?.map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+            ?.slice(-6)
+            .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
             .join("\n") || "";
+
   
       const formData = new FormData();
       formData.append("question", userQuestion);
@@ -1684,7 +1721,7 @@ export default function Home() {
 
 
                 {/* INPUT AREA - Only in Chat Tab (your original behavior) */}
-                {(activeTab === "chat") && (
+                {(activeTab === "chat" || activeTab === "practice") && (
                   <div className="mt-4 shrink-0 sticky bottom-0 bg-white pt-2 z-10">
                     <div className="flex items-center gap-2 relative">
                       <input
@@ -1695,7 +1732,7 @@ export default function Home() {
                       />
   
                       <button
-                        onClick={() => document.getElementById("fileUpload")?.click()}
+                        onClick={handleUploadButtonClick}
                         className="h-12 w-12 rounded-xl border text-lg shrink-0"
                       >
                         +
@@ -1711,8 +1748,16 @@ export default function Home() {
                           }
                         }}
                         className="h-12 flex-1 rounded-xl border px-4 text-sm"
-                        placeholder="Paste text, drop a URL, or even paste a screenshot..."
+                        placeholder={
+                          !activeId
+                            ? "Drop a URL, paste a screenshot, or ask about your document..."
+                            : activeTab === "practice"
+                            ? "Ask about these practice questions..."
+                            : "Ask about your document..."
+                        }
+
                       />
+
   
                       <button
                         className="h-12 rounded-xl bg-slate-900 px-4 text-white shrink-0"
