@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 import base64
-
+from docx import Document
 
 try:
     from pypdf import PdfReader
@@ -106,6 +106,12 @@ def extract_text(uploaded_file: UploadFile, file_bytes: bytes) -> str:
 
     if name.endswith((".txt", ".md", ".sas", ".log", ".csv")):
         return file_bytes.decode("utf-8", errors="ignore")
+
+    if name.endswith(".docx"):
+        doc = Document(io.BytesIO(file_bytes))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        return "\n".join(paragraphs)
+
 
     if name.endswith(".pdf"):
         if PdfReader is None:
