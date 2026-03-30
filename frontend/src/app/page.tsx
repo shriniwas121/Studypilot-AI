@@ -920,7 +920,7 @@ export default function Home() {
   
           {/* APP TITLE */}
           <div className="border-b border-slate-200 px-5 py-5">
-            <h1 className="text-2xl font-bold tracking-tight">StudyPilot AI</h1>
+            <h1 className="text-2xl font-bold tracking-tight">ExamLift AI</h1>
             <p className="mt-1 text-sm text-slate-500">
               AI-powered study assistant for documents, videos, and voice learning
             </p>
@@ -1109,6 +1109,7 @@ export default function Home() {
                               setTranslatedTabContent("");
                               let textToUse = "";
                             
+
                               if (activeTab === "mock") {
                                 const q = quizData[currentQ] || {};
                                 textToUse = `${q.question || ""}\n${(q.options || []).join("\n")}`;
@@ -1214,127 +1215,166 @@ export default function Home() {
                             </button>
                           )}
                         </div>
-  
+
                         {activeTab === "mock" ? (
                           <div className="space-y-6">
-                            <p className="text-xs text-slate-500 mb-2">
-                              {Object.keys(quizAnswers).length} / {quizData.length} answered
-                            </p>
-                            {quizData.length > 0 && (
-                              (() => {
-                                const q = quizData[currentQ] || {};
-                                return (
-                                  <>
-                                    <div className="p-4 border rounded-xl bg-white">
-                                      <p className="font-semibold mb-2 whitespace-pre-line">
-                                        {currentQ + 1}. {translatedTabContent || q.question}
-                                      </p>
-                                    
-                                      <div className="space-y-2">
-                                        {q.options.map((opt: string, i: number) => {
-                                          const optionLetter = ["A", "B", "C", "D"][i];
-                                          const selected = quizAnswers[currentQ];
-                                          const correct = q.answer;
-                                    
-                                          let bg = "bg-white";
-                                          if (quizScore !== null) {
-                                            if (optionLetter === correct) bg = "bg-green-100";
-                                            else if (selected === optionLetter) bg = "bg-red-100";
-                                          } else if (selected === optionLetter) {
-                                            bg = "bg-blue-100";
-                                          }
-                                    
-                                          return (
-                                            <button
-                                              key={i}
-                                              onClick={() => {
-                                                if (quizScore !== null) return;
-                                                setQuizAnswers((prev) => ({
-                                                  ...prev,
-                                                  [currentQ]: optionLetter,
-                                                }));
-                                              }}
-                                              className={`block w-full text-left px-3 py-2 border rounded ${bg}`}
-                                            >
-                                              {optionLetter}) {opt}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    
-                                      {/* ✅ ADD THIS EXACTLY HERE */}
-                                      {quizScore !== null && (
-                                        <div className="mt-3 text-sm text-slate-600 border-t pt-2">
-                                          <strong>Explanation:</strong> {q.explanation || "No explanation provided"}
-                                        </div>
-                                      )}
+                            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    Mock Test
+                                  </p>
+                                  <h4 className="mt-2 text-2xl font-bold text-slate-900">
+                                    Question {currentQ + 1}
+                                  </h4>
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    {Object.keys(quizAnswers).length} / {quizData.length} answered
+                                  </p>
+                                </div>
+                        
+                                <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-700">
+                                  Progress: {quizData.length ? Math.round(((currentQ + 1) / quizData.length) * 100) : 0}%
+                                </div>
+                              </div>
+                        
+                              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                                <div
+                                  className="h-full rounded-full bg-slate-900 transition-all duration-300"
+                                  style={{
+                                    width: `${quizData.length ? ((currentQ + 1) / quizData.length) * 100 : 0}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                        
+                            {quizData.length > 0 && (() => {
+                              const q = quizData[currentQ] || {};
+                        
+                              return (
+                                <>
+                                  <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                                    <p className="mb-6 text-xl font-semibold leading-8 text-slate-900 whitespace-pre-line">
+                                      {translatedTabContent || q.question}
+                                    </p>
+                        
+                                    <div className="space-y-3">
+                                      {(q.options || []).map((opt: string, i: number) => {
+                                        const optionLetter = ["A", "B", "C", "D"][i];
+                                        const selected = quizAnswers[currentQ] === optionLetter;
+                                        const correct = quizScore !== null && q.answer === optionLetter;
+                                        const wrongSelected =
+                                          quizScore !== null && selected && q.answer !== optionLetter;
+                        
+                                        const stateClass =
+                                          correct
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-900"
+                                            : wrongSelected
+                                            ? "border-rose-500 bg-rose-50 text-rose-900"
+                                            : selected
+                                            ? "border-slate-900 bg-slate-100 text-slate-900"
+                                            : "border-slate-200 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50";
+                        
+                                        return (
+                                          <button
+                                            key={i}
+                                            onClick={() => {
+                                              if (quizScore !== null) return;
+                                              setQuizAnswers((prev) => ({
+                                                ...prev,
+                                                [currentQ]: optionLetter,
+                                              }));
+                                            }}
+                                            className={`w-full rounded-2xl border px-4 py-4 text-left text-base transition ${stateClass}`}
+                                          >
+                                            <div className="flex items-start gap-3">
+                                              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current text-sm font-semibold">
+                                                {optionLetter}
+                                              </span>
+                                              <span className="leading-7">{opt}</span>
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
                                     </div>
-
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => setCurrentQ(prev => Math.max(prev - 1, 0))}
-                                        disabled={currentQ === 0}
-                                        className="px-3 py-2 border rounded disabled:opacity-50"
-                                      >
-                                        Previous
-                                      </button>
-                                    
-                                      <button
-                                        onClick={() =>
-                                          setCurrentQ(prev => Math.min(prev + 1, quizData.length - 1))
-                                        }
-                                        disabled={currentQ === quizData.length - 1}
-                                        className="px-3 py-2 border rounded disabled:opacity-50"
-                                      >
-                                        Next
-                                      </button>
-                                    </div>
-  
-                                    <button
-                                      onClick={() => {
-                                        let score = 0;
-                                        quizData.forEach((q, idx) => {
-                                          if (quizAnswers[idx] === q.answer) score++;
-                                        });
-                                        setQuizScore(score);
-                                      }}
-                                      className="px-4 py-2 bg-slate-900 text-white rounded"
-                                    >
-                                      Submit Test
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setQuizAnswers({});
-                                        setQuizScore(null);
-                                        setCurrentQ(0);
-                                        setTranslatedTabContent(""); // reset translation too
-                                      }}
-                                      className="px-4 py-2 border rounded"
-                                    >
-                                      🔄 Restart Test
-                                    </button>
-
-
+                        
                                     {quizScore !== null && (
-                                      <div className="p-4 rounded-xl bg-slate-100 border">
-                                        <p className="text-lg font-semibold">
-                                          Score: {quizScore} / {quizData.length}
+                                      <div className="mt-6 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                                        <p className="text-sm font-semibold text-slate-700">
+                                          Correct Answer: {q.answer}
                                         </p>
-                                    
-                                        <p className="text-sm mt-1 text-slate-600">
-                                          {quizScore === quizData.length
-                                            ? "Perfect score 🎯"
-                                            : quizScore > quizData.length * 0.7
-                                            ? "Good job 👍"
-                                            : "Keep practicing 💪"}
-                                        </p>
+                                        {q.explanation && (
+                                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                                            {q.explanation}
+                                          </p>
+                                        )}
                                       </div>
                                     )}
-
-                                  </>
-                                );
-                              })()
-                            )}
+                                  </div>
+                        
+                                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        disabled={currentQ === 0}
+                                        onClick={() => setCurrentQ((prev) => prev - 1)}
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                      >
+                                        ← Previous
+                                      </button>
+                        
+                                      <button
+                                        disabled={currentQ === quizData.length - 1}
+                                        onClick={() => setCurrentQ((prev) => prev + 1)}
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                      >
+                                        Next →
+                                      </button>
+                                    </div>
+                        
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={() => {
+                                          setQuizAnswers({});
+                                          setQuizScore(null);
+                                          setCurrentQ(0);
+                                        }}
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                      >
+                                        ↺ Restart Test
+                                      </button>
+                        
+                                      <button
+                                        onClick={() => {
+                                          let score = 0;
+                                          quizData.forEach((item: any, idx: number) => {
+                                            if (quizAnswers[idx] === item.answer) score++;
+                                          });
+                                          setQuizScore(score);
+                                        }}
+                                        className="rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                                      >
+                                        Submit Test
+                                      </button>
+                                    </div>
+                                  </div>
+                        
+                                  {quizScore !== null && (
+                                    <div className="rounded-3xl bg-slate-900 px-6 py-5 text-white shadow-sm">
+                                      <p className="text-sm uppercase tracking-wide text-slate-300">
+                                        Your Result
+                                      </p>
+                                      <p className="mt-2 text-3xl font-bold">
+                                        {quizScore} / {quizData.length}
+                                      </p>
+                                      <p className="mt-2 text-sm text-slate-300">
+                                        {quizData.length
+                                          ? `${Math.round((quizScore / quizData.length) * 100)}% score`
+                                          : "0% score"}
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         ) : (
 
@@ -1367,7 +1407,7 @@ export default function Home() {
                             </div>
                           </div>
         
-                          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to StudyPilot</h1>
+                          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to ExamLift AI</h1>
                           <p className="text-xl text-slate-600 mb-5 max-w-md">
                             Your intelligent study companion that turns notes into knowledge
                           </p>
