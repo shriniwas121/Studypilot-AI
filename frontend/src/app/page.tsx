@@ -531,19 +531,8 @@ export default function Home() {
   
 
       if (!activeId) {
-        setGeneralChat(prev => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "⚠️ Please upload a document, paste text, URL, or screenshot first.",
-            sourceType: "none"
-          }
-        ]);
-        setQuestion("");
         return;
       }
-
-
   
       // ✅ PUSH USER MESSAGE FIRST
       if (activeId) {
