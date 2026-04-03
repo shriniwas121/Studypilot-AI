@@ -774,7 +774,7 @@ export default function Home() {
       
         content = content
           .split("\n")
-          .map((line) => {
+          .map((line: string) => {
             const trimmed = line.trim();
       
             if (!trimmed) return line;
