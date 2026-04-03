@@ -2,11 +2,9 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 
-
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
-  originalContent?: string;
   sourceType?: "document" | "external" | "none";
 };
 
@@ -97,7 +95,6 @@ export default function Home() {
       setQuizAnswers({});
       setQuizScore(null);
       setCurrentQ(0);
-      setSelectedLanguage("english");
       localStorage.removeItem("docpilot_active_id");
 
 
@@ -399,7 +396,7 @@ export default function Home() {
       setQuizAnswers({});
       setQuizScore(null);
       setCurrentQ(0);
-      setSelectedLanguage("english");  
+  
       setQuestion("");
       setAnswer("");
       setStreamingText("");
@@ -765,124 +762,59 @@ export default function Home() {
       });
   
       const data = await res.json();
-
-      let content = data.result || data.summary || "";
-      
-
-      if (tab === "practice") {
-        let qNum = 0;
-      
-        content = content
-          .split("\n")
-          .map((line) => {
-            const trimmed = line.trim();
-      
-            if (!trimmed) return line;
-      
-            const isQuestionLine =
-              /^\*\*[^*\n]+:\*\*/.test(trimmed) || /^[A-Za-z][A-Za-z\s\-&()]+:/.test(trimmed);
-      
-            const isSectionHeading =
-              /^conceptual questions:?$/i.test(trimmed) ||
-              /^application questions:?$/i.test(trimmed) ||
-              /^practice questions:?$/i.test(trimmed);
-      
-            if (isQuestionLine && !isSectionHeading) {
-              qNum += 1;
-              return `Q${qNum}. ${line}`;
-            }
-      
-            return line;
-          })
-          .join("\n");
-      }
-
-
-
+      const content = data.result || data.summary || "";
+  
       if (tab === "mock") {
+
+
         const questions = content.split(/\n(?=Question:)/);
-      
+        
         const parsed = questions.map((block: string) => {
           const lines = block.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      
-          const questionLine = lines.find((l) => l.toLowerCase().startsWith("question:")) || "";
-          const question = questionLine.replace(/^question:\s*/i, "").trim();
-      
-          const rawOptions = lines
-            .filter((l) => /^[A-D][\).]\s/.test(l))
-            .map((l) => ({
-              text: l.replace(/^[A-D][\).]\s*/, "").trim(),
-            }))
-            .slice(0, 4);
-      
-          const correctOptionTextLine = lines.find((l) =>
-            l.toLowerCase().startsWith("correctoptiontext:")
+        
+          const question = lines[0];
+        
+
+          const options = lines
+            .filter(l => /^[A-D][\).]\s/.test(l))   // only A) B) C) D)
+            .map(l => l.replace(/^[A-D][\).]\s*/, ""))
+            .slice(0, 4);  // force max 4
+        
+          const answerLine = lines.find(l =>
+            l.toLowerCase().includes("answer")
           );
-      
-          const correctOptionText = correctOptionTextLine
-            ? correctOptionTextLine.replace(/correctoptiontext:\s*/i, "").trim()
+        
+          const answer = answerLine
+            ? answerLine.match(/[A-D]/)?.[0] || ""
             : "";
-      
-          const explanationLine = lines.find((l) =>
-            l.toLowerCase().startsWith("explanation:")
+
+
+          const explanationLine = lines.find(l =>
+            l.toLowerCase().includes("explanation")
           );
-      
+          
           const explanation = explanationLine
-            ? explanationLine.replace(/explanation:\s*/i, "").trim()
+            ? explanationLine.replace(/explanation[:\-]*/i, "").trim()
             : "";
-      
-          if (!question || !correctOptionText || rawOptions.length !== 4) {
-            return null;
-          }
-      
-          const correctOptionExists = rawOptions.some(
-            (o) => o.text.trim().toLowerCase() === correctOptionText.trim().toLowerCase()
-          );
-      
-          if (!correctOptionExists) {
-            return null;
-          }
-      
-          const shuffled = [...rawOptions]
-            .map((o) => ({ ...o, sortKey: Math.random() }))
-            .sort((a, b) => a.sortKey - b.sortKey)
-            .map(({ sortKey, ...rest }) => rest);
-      
-          const options = shuffled.map((o) => o.text);
-      
-          const newAnswerIndex = shuffled.findIndex(
-            (o) => o.text.trim().toLowerCase() === correctOptionText.trim().toLowerCase()
-          );
-      
-          if (newAnswerIndex < 0) {
-            return null;
-          }
-      
-          const newAnswer = ["A", "B", "C", "D"][newAnswerIndex];
-      
-          return {
-            question,
-            options,
-            answer: newAnswer,
-            explanation,
-          };
+          
+          return { question, options, answer, explanation };
+
+
         });
-      
-        const cleaned = parsed.filter(
-          (q: any) => q && q.question && q.options && q.options.length === 4 && q.answer
-        );
-      
+        
+        const cleaned = parsed.filter((q: any) => q.options && q.options.length >= 4);
+
         console.log("QUIZ DATA:", cleaned);
-      
+
         setQuizData(cleaned);
+
         setQuizAnswers({});
         setQuizScore(null);
         setCurrentQ(0);
-        setSelectedLanguage("english");
+  
       } else {
         setTabContent(content);
       }
-
   
     } catch (err) {
       console.error(err);
@@ -986,7 +918,7 @@ export default function Home() {
   // ==================== RETURN STATEMENT (Fixed) ====================
 
   return (
-      <div className="flex h-screen flex-col overflow-hidden bg-white text-slate-900 md:flex-row">
+      <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-sky-50 text-slate-900">
   
         {/* ✅ OVERLAY */}
         {showSidebar && (
@@ -1068,31 +1000,10 @@ export default function Home() {
                       : "border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:bg-slate-50 hover:-translate-y-0.5"
                   }`}
                 >
-
                   <button
-                    onClick={() => {
-                      setActiveId(item.id);
-                      setActiveTab("chat");
-                      setTabContent("");
-                      setTranslatedTabContent("");
-                      setQuizData([]);
-                      setQuizAnswers({});
-                      setQuizScore(null);
-                      setCurrentQ(0);
-                      setSelectedLanguage("english");                  
-                      const selectedItem = library.find((libItem) => libItem.id === item.id);
-                      if (selectedItem) {
-                        setFileName(selectedItem.name);
-                        setSummary(selectedItem.summary);
-                        setDocumentText(selectedItem.documentText);
-                        setQuestion("");
-                        setAnswer("");
-                        setStreamingText("");
-                      }
-                    }}
+                    onClick={() => setActiveId(item.id)}
                     className="w-full text-left"
                   >
-
                     <p className="text-sm font-semibold truncate text-slate-900">{item.name}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {item.type} • {item.status}
@@ -1170,349 +1081,248 @@ export default function Home() {
             })}
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2 pt-2 md:px-4 md:pb-4 md:pt-3">
-                                
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-2 md:p-4">
+            <section className="flex h-full w-full flex-col rounded-[32px] border border-white/60 bg-gradient-to-br from-white via-slate-50 to-sky-50/40 p-0 shadow-[0_18px_60px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
 
 
               {activeId && (
-                <div className="grid grid-cols-1 gap-2 border-b border-slate-200/80 px-3 py-2 md:grid-cols-[1fr_auto_1fr] md:items-center md:px-4">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-[15px] font-semibold text-slate-900">
-                      {activeTab === "summary"
-                        ? "Smart Summary"
-                        : activeTab === "concepts"
-                        ? "Key Concepts"
-                        : activeTab === "practice"
-                        ? "Practice Questions"
-                        : activeTab === "mock"
-                        ? "Mock Test"
-                        : "Chat with content"}
-                    </h3>
-              
-                    <p className="truncate text-xs text-slate-500">
-                      {fileName || "Selected content"}
-                    </p>
-
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">Chat with content</h3>
+                    <p className="text-sm text-slate-500">Grounded Q&A for the selected item</p>
                   </div>
               
-                  <div className="flex flex-wrap items-center justify-center gap-2 md:justify-self-center">
-                    <select
-                      value={selectedLanguage}
-                      onChange={(e) => setSelectedLanguage(e.target.value)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 shadow-sm"
-                    >
-                      <option value="english">English</option>
-                      <option value="hindi">Hindi</option>
-                      <option value="telugu">Telugu</option>
-                      <option value="french">French</option>
-                      <option value="german">German</option>
-                    </select>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="rounded-xl border border-slate-300 px-2 py-2 text-xs"
+                  >
+                    <option value="english">English</option>
+                    <option value="hindi">Hindi</option>
+                    <option value="telugu">Telugu</option>
+                    <option value="french">French</option>
+                    <option value="german">German</option>
+                  </select>
+              
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                      Grounded Q&A
+                    </span>
               
                     <button
-                      onClick={async () => {
-                        let textToUse = "";
-              
-
-
-                        if (activeTab === "chat") {
-                          const activeItem = library.find((item) => item.id === activeId);
-                          const lastAssistantIndex =
-                            activeItem?.chatHistory
-                              ?.map((msg, idx) => ({ ...msg, idx }))
-                              .filter((msg) => msg.role === "assistant" && msg.content?.trim())
-                              .slice(-1)[0]?.idx;
-                        
-                          if (lastAssistantIndex === undefined) return;
-                        
-                          const lastAssistantMessage = activeItem?.chatHistory?.[lastAssistantIndex];
-                          if (!lastAssistantMessage) return;
-                        
-                          const originalText =
-                            lastAssistantMessage.originalContent || lastAssistantMessage.content;
-                        
-                          if (!originalText.trim()) return;
-                        
-
-                          if (selectedLanguage === "english") {
-                            setLibrary((prev) =>
-                              prev.map((item) =>
-                                item.id === activeId
-                                  ? {
-                                      ...item,
-                                      chatHistory: item.chatHistory.map((msg, idx) =>
-                                        idx === lastAssistantIndex
-                                          ? {
-                                              ...msg,
-                                              content: msg.originalContent || msg.content,
-                                            }
-                                          : msg
-                                      ),
-                                    }
-                                  : item
-                              )
-                            );
-                          
-                            if (streamingText) {
-                              setStreamingText(originalText);
-                            }
-                          
-                            return;
-                          }
-
-
-                          const formData = new FormData();
-                          formData.append("text", originalText);
-                          formData.append("language", selectedLanguage);
-                        
-                          const res = await fetch(`${API}/translate`, {
-                            method: "POST",
-                            body: formData,
-                          });
-                        
-                          const data = await res.json();
-                          const translatedText = data.translated_text || originalText;
-                        
-                          setLibrary((prev) =>
-                            prev.map((item) =>
-                              item.id === activeId
-                                ? {
-                                    ...item,
-                                    chatHistory: item.chatHistory.map((msg, idx) =>
-                                      idx === lastAssistantIndex
-                                        ? {
-                                            ...msg,
-                                            originalContent: msg.originalContent || originalText,
-                                            content: translatedText,
-                                          }
-                                        : msg
-                                    ),
-                                  }
-                                : item
-                            )
-                          );
-
-
-              
-                          if (streamingText) {
-                            const activeItem = library.find((item) => item.id === activeId);
-                            const lastAssistantMessage =
-                              [...(activeItem?.chatHistory || [])]
-                                .reverse()
-                                .find((msg) => msg.role === "assistant" && msg.content?.trim());
-                          
-                            const originalText =
-                              lastAssistantMessage?.originalContent || lastAssistantMessage?.content || streamingText;
-                          
-                            setStreamingText(selectedLanguage === "english" ? originalText : translatedText);
-                          }
-              
-                          return;
-                        }
-              
-                        if (activeTab === "mock") {
-                          const q = quizData[currentQ] || {};
-                          textToUse = `${q.question || ""}\n${(q.options || []).join("\n")}`;
-                        } else {
-                          textToUse = tabContent;
-                        }
-              
-                        if (!textToUse) return;
-              
-                        const formData = new FormData();
-                        formData.append("text", textToUse);
-                        formData.append("language", selectedLanguage);
-              
-                        const res = await fetch(`${API}/translate`, {
-                          method: "POST",
-                          body: formData,
-                        });
-              
-                        const data = await res.json();
-                        setTranslatedTabContent(data.translated_text || textToUse);
-                      }}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      onClick={() => handleCopyChat()}
+                      disabled={!activeId}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      🌍 Translate
+                      Copy chat
                     </button>
               
-                    {activeTab !== "chat" && (
-                      isTabSpeaking ? (
-                        <button
-                          onClick={() => {
-                            if (tabAudio) {
-                              tabAudio.pause();
-                              tabAudio.currentTime = 0;
-                            }
-                            setTabAudio(null);
-                            setIsTabSpeaking(false);
-                          }}
-                          className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600 shadow-sm transition hover:bg-rose-100"
-                        >
-                          ⏹ Stop
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            if (isAudioLoading) return;
+                    <button
+                      onClick={() => handleClearChat()}
+                      disabled={!activeId}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Clear chat
+                    </button>
               
-                            let textToUse = "";
-              
-                            if (activeTab === "mock") {
-                              const q = quizData[currentQ] || {};
-                              textToUse = `${q.question || ""}\n${(q.options || []).join("\n")}`;
-                            } else {
-                              textToUse = tabContent;
-                            }
-              
-                            if (!textToUse) return;
-              
-                            setIsAudioLoading(true);
-              
-                            try {
-                              if (tabAudio) {
-                                tabAudio.pause();
-                                tabAudio.currentTime = 0;
-                              }
-              
-                              const formData = new FormData();
-                              formData.append("text", textToUse);
-                              formData.append("language", selectedLanguage);
-              
-                              const res = await fetch(`${API}/translate-and-speak`, {
-                                method: "POST",
-                                body: formData,
-                              });
-              
-                              const blob = await res.blob();
-                              const url = URL.createObjectURL(blob);
-                              const audio = new Audio(url);
-              
-                              setTabAudio(audio);
-                              setIsTabSpeaking(true);
-              
-                              await audio.play();
-              
-                              audio.onended = () => {
-                                setTabAudio(null);
-                                setIsTabSpeaking(false);
-                                URL.revokeObjectURL(url);
-                              };
-                            } catch (err) {
-                              console.error(err);
-                            } finally {
-                              setIsAudioLoading(false);
-                            }
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                          {isAudioLoading ? "⏳ Processing..." : "🔊 Listen"}
-                        </button>
-                      )
-                    )}
+                    <button
+                      onClick={() => {
+                        setActiveId("");
+                        setGeneralChat([]);
+                        setActiveTab("chat");
+                        setFileName("");
+                        setSummary("");
+                        setDocumentText("");
+                        setQuestion("");
+                        setAnswer("");
+                        setStreamingText("");
+                        setTabContent("");
+                        setTranslatedTabContent("");
+                        setQuizData([]);
+                        localStorage.removeItem("docpilot_active_id");
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+                    >
+                      New chat
+                    </button>
                   </div>
-
-
-                  <div className="flex flex-wrap items-center justify-start gap-2 md:justify-self-end">
-                    {activeTab === "chat" && (
-                      <>
-                        <span className="rounded-full bg-gradient-to-r from-emerald-50 to-cyan-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                          Grounded Q&A
-                        </span>
-                  
-                        <button
-                          onClick={() => handleCopyChat()}
-                          disabled={!activeId}
-                          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Copy chat
-                        </button>
-                  
-                        <button
-                          onClick={() => handleClearChat()}
-                          disabled={!activeId}
-                          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Clear chat
-                        </button>
-                      </>
-                    )}              
-
-                  </div>
-
-
                 </div>
               )}
-
-
 
 
               <div className={`flex h-full flex-1 flex-col min-h-0 overflow-hidden ${activeId ? "p-4 md:p-5" : "p-0"}`}>
                 {activeTab !== "chat" ? (
                   <div className="flex-1 h-full min-h-0 overflow-y-auto rounded-[28px] bg-slate-50 p-0 ring-1 ring-slate-200">
                     {isTabLoading ? (
-
-
-                      <div className="flex h-full items-center justify-center">
-                        <div className="rounded-[28px] border border-slate-200 bg-white px-8 py-6 text-center shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
-                          <div className="mx-auto mb-3 h-10 w-10 animate-pulse rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-teal-500" />
-                          <p className="text-sm font-medium text-slate-700">Preparing your {activeTab} view...</p>
-                          <p className="mt-1 text-xs text-slate-500">ExamLift AI is organizing the content</p>
-                        </div>
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-slate-500">Loading...</p>
                       </div>
-
-
                     ) : (
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <button
 
-                      <div className="space-y-1 p-1 md:p-1">
+
+                            onClick={async () => {
+                              setTranslatedTabContent("");
+                              let textToUse = "";
+                            
+
+                              if (activeTab === "mock") {
+                                const q = quizData[currentQ] || {};
+                                textToUse = `${q.question || ""}\n${(q.options || []).join("\n")}`;
+                              } else {
+                                textToUse = tabContent;
+                              }
+                            
+                              if (!textToUse) return;
+                            
+                              const formData = new FormData();
+                              formData.append("text", textToUse);
+                              formData.append("language", selectedLanguage);
+                            
+                              const res = await fetch(`${API}/translate`, {
+                                method: "POST",
+                                body: formData,
+                              });
+                            
+                              const data = await res.json();
+                            
+                              setTranslatedTabContent(data.translated_text || textToUse);
+                            }}
+
+
+                            className="text-xs px-3 py-1 border rounded"
+                          >
+                            🌍 Translate
+                          </button>
+  
+                          {isTabSpeaking ? (
+                            <button
+                              onClick={() => {
+                                if (tabAudio) {
+                                  tabAudio.pause();
+                                  tabAudio.currentTime = 0;
+                                }
+                                setTabAudio(null);
+                                setIsTabSpeaking(false);
+                              }}
+                              className="text-xs px-3 py-1 border rounded text-red-500"
+                            >
+                              ⏹ Stop
+                            </button>
+                          ) : (
+                            <button
+
+                              onClick={async () => {
+                                if (isAudioLoading) return;
+                              
+                                let textToUse = "";
+                              
+                                if (activeTab === "mock") {
+                                  const q = quizData[currentQ] || {};
+                                  textToUse = `${q.question || ""}\n${(q.options || []).join("\n")}`;
+                                } else {
+                                  textToUse = tabContent;
+                                }
+                              
+                                if (!textToUse) return;
+                              
+                                setIsAudioLoading(true);
+                              
+                                try {
+                                  if (tabAudio) {
+                                    tabAudio.pause();
+                                    tabAudio.currentTime = 0;
+                                  }
+                              
+                                  const formData = new FormData();
+                                  formData.append("text", textToUse);
+                                  formData.append("language", selectedLanguage);
+                              
+                                  const res = await fetch(`${API}/translate-and-speak`, {
+                                    method: "POST",
+                                    body: formData,
+                                  });
+                              
+                                  const blob = await res.blob();
+                                  const url = URL.createObjectURL(blob);
+                                  const audio = new Audio(url);
+                              
+                                  setTabAudio(audio);
+                                  setIsTabSpeaking(true);
+                              
+                                  await audio.play();
+                              
+                                  audio.onended = () => {
+                                    setTabAudio(null);
+                                    setIsTabSpeaking(false);
+                                    URL.revokeObjectURL(url);
+                                  };
+                              
+                                } catch (err) {
+                                  console.error(err);
+                                } finally {
+                                  setIsAudioLoading(false);
+                                }
+                              }}
+
+                              className="text-xs px-3 py-1 border rounded"
+                            >
+                              {isAudioLoading ? "⏳ Processing..." : "🔊 Listen"}
+                            </button>
+                          )}
+                        </div>
 
                         {activeTab === "mock" ? (
-                          <div className="space-y-1">
-
-
-                            <div className="rounded-[6px] border border-indigo-100 bg-gradient-to-br from-cyan-50 via-white to-teal-50 p-0.2 shadow-[0_1px_8px_rgba(99,102,241,0.08)] ring-1 ring-white/70">
-                              <div className="flex flex-col gap-1.5 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-6">
+                            <div className="rounded-[28px] border border-indigo-100 bg-gradient-to-br from-cyan-50 via-white to-teal-50 p-5 shadow-[0_14px_40px_rgba(99,102,241,0.12)] ring-1 ring-white/70">
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                            
-                                  <h4 className="mt-1.5 text-lg font-bold tracking-tight text-slate-900 md:text-xl">
+                                  <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-700 shadow-sm ring-1 ring-sky-100">
+                                    <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                                    Mock Test Mode
+                                  </div>
+                        
+                                  <h4 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
                                     Question {currentQ + 1}
                                   </h4>
-                            
-                                  <p className="mt-1 text-xs text-slate-600">
+                        
+                                  <p className="mt-2 text-sm text-slate-600">
                                     {Object.keys(quizAnswers).length} of {quizData.length} answered
                                   </p>
                                 </div>
-                            
-                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                                  <div className="rounded-xl bg-white/90 px-3 py-2 shadow-sm ring-1 ring-slate-200">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        
+                                <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+                                  <div className="rounded-2xl bg-white/90 px-4 py-3 shadow-sm ring-1 ring-slate-200">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                       Progress
                                     </p>
-                                    <p className="mt-0.5 text-base font-bold text-slate-900">
+                                    <p className="mt-1 text-lg font-bold text-slate-900">
                                       {quizData.length ? Math.round(((currentQ + 1) / quizData.length) * 100) : 0}%
                                     </p>
                                   </div>
-                            
-                                  <div className="rounded-xl bg-white/90 px-3 py-2 shadow-sm ring-1 ring-slate-200">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        
+                                  <div className="rounded-2xl bg-white/90 px-4 py-3 shadow-sm ring-1 ring-slate-200">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                       Answered
                                     </p>
-                                    <p className="mt-0.5 text-base font-bold text-slate-900">
+                                    <p className="mt-1 text-lg font-bold text-slate-900">
                                       {Object.keys(quizAnswers).length}
                                     </p>
                                   </div>
                                 </div>
                               </div>
-                            
-                              <div className="mt-2.5">
-                                <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-slate-500">
+                        
+                              <div className="mt-5">
+                                <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
                                   <span>Test progress</span>
                                   <span>
                                     {currentQ + 1} / {quizData.length || 0}
                                   </span>
                                 </div>
-                            
-                                <div className="h-2 w-full overflow-hidden rounded-full bg-white/80 ring-1 ring-slate-200">
+                        
+                                <div className="h-3 w-full overflow-hidden rounded-full bg-white/80 ring-1 ring-slate-200">
                                   <div
                                     className="h-full rounded-full bg-gradient-to-r from-sky-600 via-cyan-600 to-teal-500 transition-all duration-500"
                                     style={{
@@ -1522,19 +1332,20 @@ export default function Home() {
                                 </div>
                               </div>
                             </div>
-
-
                         
                             {quizData.length > 0 && (() => {
                               const q = quizData[currentQ] || {};
                         
                               return (
                                 <>
-                                  <div className="rounded-[22px] border border-slate-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ring-1 ring-white/60 backdrop-blur">
+                                  <div className="rounded-[30px] border border-slate-200 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/60 backdrop-blur">
                                     <div className="mb-5 flex flex-wrap items-center gap-3">
+                                      <div className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm">
+                                        Exam Question
+                                      </div>
                         
                                       {quizAnswers[currentQ] && (
-                                        <div className="rounded-full bg-slate-100 px-1 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                                        <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
                                           Selected: {quizAnswers[currentQ]}
                                         </div>
                                       )}
@@ -1546,11 +1357,11 @@ export default function Home() {
                                       )}
                                     </div>
                         
-                                    <p className="mb-5 text-lg font-semibold leading-7 text-slate-900 whitespace-pre-line md:text-xl">
+                                    <p className="mb-8 text-xl font-semibold leading-8 text-slate-900 whitespace-pre-line md:text-2xl">
                                       {translatedTabContent || q.question}
                                     </p>
                         
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                       {(q.options || []).map((opt: string, i: number) => {
                                         const optionLetter = ["A", "B", "C", "D"][i];
                                         const selected = quizAnswers[currentQ] === optionLetter;
@@ -1595,7 +1406,7 @@ export default function Home() {
                                               </span>
                         
                                               <div className="flex-1">
-                                                <p className="text-sm font-medium leading-6">{opt}</p>
+                                                <p className="text-base font-medium leading-7">{opt}</p>
                                               </div>
                                             </div>
                                           </button>
@@ -1604,7 +1415,7 @@ export default function Home() {
                                     </div>
                         
                                     {quizScore !== null && (
-                                      <div className="mt-4 rounded-[18px] border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-inner">
+                                      <div className="mt-6 rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5 shadow-inner">
                                         <div className="flex flex-wrap items-center gap-3">
                                           <div className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
                                             Answer Review
@@ -1615,7 +1426,7 @@ export default function Home() {
                                         </div>
                         
                                         {q.explanation && (
-                                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                                          <p className="mt-3 text-sm leading-7 text-slate-600">
                                             {q.explanation}
                                           </p>
                                         )}
@@ -1623,12 +1434,12 @@ export default function Home() {
                                     )}
                                   </div>
                         
-                                  <div className="grid gap-2 xl:grid-cols-[1fr_auto]">
-                                    <div className="flex flex-wrap items-center gap-1">
+                                  <div className="grid gap-4 xl:grid-cols-[1fr_auto]">
+                                    <div className="flex flex-wrap items-center gap-3">
                                       <button
                                         disabled={currentQ === 0}
                                         onClick={() => setCurrentQ((prev) => prev - 1)}
-                                        className="rounded-1xl border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
                                       >
                                         ← Previous
                                       </button>
@@ -1636,7 +1447,7 @@ export default function Home() {
                                       <button
                                         disabled={currentQ === quizData.length - 1}
                                         onClick={() => setCurrentQ((prev) => prev + 1)}
-                                        className="rounded-1xl border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
                                       >
                                         Next →
                                       </button>
@@ -1646,9 +1457,8 @@ export default function Home() {
                                           setQuizAnswers({});
                                           setQuizScore(null);
                                           setCurrentQ(0);
-                                          setSelectedLanguage("english");
                                         }}
-                                        className="rounded-1xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md"
+                                        className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md"
                                       >
                                         ↺ Restart Test
                                       </button>
@@ -1662,25 +1472,25 @@ export default function Home() {
                                         });
                                         setQuizScore(score);
                                       }}
-                                      className="rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(99,102,241,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(99,102,241,0.30)]"
+                                      className="rounded-2xl bg-gradient-to-r from-sky-600 via-cyan-600 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(99,102,241,0.30)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(99,102,241,0.35)]"
                                     >
                                       Submit Test
                                     </button>
                                   </div>
                         
-                                  <div className="rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                                    <div className="mb-2 flex items-center justify-between">
+                                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+                                    <div className="mb-4 flex items-center justify-between">
                                       <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                                           Quick Navigation
                                         </p>
-                                        <p className="mt-0.5 text-xs text-slate-600">
+                                        <p className="mt-1 text-sm text-slate-600">
                                           Jump to any question
                                         </p>
                                       </div>
                                     </div>
                         
-                                    <div className="flex flex-wrap gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                       {quizData.map((_: any, idx: number) => {
                                         const isCurrent = idx === currentQ;
                                         const isAnswered = quizAnswers[idx];
@@ -1688,7 +1498,7 @@ export default function Home() {
                                           <button
                                             key={idx}
                                             onClick={() => setCurrentQ(idx)}
-                                            className={`h-9 w-9 rounded-2xl text-sm font-semibold transition ${
+                                            className={`h-11 w-11 rounded-2xl text-sm font-semibold transition ${
                                               isCurrent
                                                 ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-[0_10px_24px_rgba(99,102,241,0.28)]"
                                                 : isAnswered
@@ -1703,11 +1513,6 @@ export default function Home() {
                                     </div>
                                   </div>
                         
-
-
-
-
-
                                   {quizScore !== null && (
                                     <div className="rounded-[30px] bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-6 text-white shadow-[0_18px_50px_rgba(15,23,42,0.30)]">
                                       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -1746,7 +1551,7 @@ export default function Home() {
                           </div>
                         ) : (
 
-                          <div className="rounded-[32px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/40 p-7 shadow-[0_20px_55px_rgba(15,23,42,0.08)] ring-1 ring-white/70 backdrop-blur md:p-8">
+                          <div className="rounded-[30px] border border-slate-200 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/70 backdrop-blur">
                             <div className="mb-5 flex flex-wrap items-center gap-3">
                               <div className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-sm">
                                 {activeTab === "summary"
@@ -1761,36 +1566,36 @@ export default function Home() {
                               </div>
                             </div>
                           
-                            <div className="prose prose-slate max-w-none prose-headings:tracking-tight prose-headings:text-slate-500 prose-p:text-[12px] prose-p:leading-7 prose-p:text-slate-700 prose-li:text-[12px] prose-li:leading-5 prose-li:text-slate-500 prose-strong:text-slate-500">
+                            <div className="prose prose-slate max-w-none">
                               <ReactMarkdown
                                 skipHtml={true}
                                 components={{
                                   h1: (props) => (
                                     <h1
-                                      className="mb-4 text-2xl font-bold tracking-tight text-slate-900 md:text-2xl"
+                                      className="mb-4 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl"
                                       {...props}
                                     />
                                   ),
                                   h2: (props) => (
                                     <h2
-                                      className="mt-4 mb-3 text-1xl font-semibold text-slate-900 md:text-2xl"
+                                      className="mt-8 mb-3 text-xl font-semibold text-slate-900 md:text-2xl"
                                       {...props}
                                     />
                                   ),
                                   h3: (props) => (
                                     <h3
-                                      className="mt-3 text-xl font-bold tracking-tight text-slate-900 md:text-2xl"
+                                      className="mt-6 mb-3 text-lg font-semibold text-slate-800"
                                       {...props}
                                     />
                                   ),
                                   p: (props) => (
-                                    <p className="mb-4 text-base leading-8 text-slate-700" {...props} />
+                                    <p className="mb-4 text-[15px] leading-8 text-slate-700" {...props} />
                                   ),
                                   ul: (props) => (
                                     <ul className="mb-5 space-y-2 pl-1" {...props} />
                                   ),
                                   li: (props) => (
-                                    <li className="mb-4 text-base leading-8 text-slate-700" {...props} />
+                                    <li className="ml-5 list-disc text-[15px] leading-7 text-slate-700" {...props} />
                                   ),
                                   strong: (props) => (
                                     <strong className="font-semibold text-slate-900" {...props} />
@@ -1815,7 +1620,7 @@ export default function Home() {
                     )}
                   </div>
                 ) : (
-                  <div className="flex-1 h-full min-h-0 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_24%),radial-gradient(circle_at_top_right,rgba(45,212,191,0.14),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.10),transparent_24%),linear-gradient(135deg,#f7fbff_0%,#eef9ff_34%,#edfdfa_70%,#f7fffd_100%)] p-0 ring-1 ring-sky-100">
+                  <div className="flex-1 h-full min-h-0 overflow-hidden rounded-[28px] bg-slate-50 p-0 ring-1 ring-slate-200">
                     <div className="h-full">
 
 
@@ -1823,104 +1628,122 @@ export default function Home() {
 
                         <div className="w-full">
 
-
                           {!activeId && generalChat.length === 0 && (
                             <div className="relative h-full min-h-full w-full overflow-hidden rounded-[32px] border-0 shadow-none">
-                              <div className="relative flex h-full min-h-full w-full items-center justify-center overflow-hidden bg-no-repeat">
-                                
-                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.06),transparent_24%),radial-gradient(circle_at_top_right,rgba(45,212,191,0.04),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.03),transparent_24%)]" />
-                          
-                                <div className="absolute left-[8%] top-[16%] h-24 w-24 rounded-full bg-sky-300/30 blur-3xl md:h-32 md:w-32" />
-                                <div className="absolute right-[10%] top-[12%] h-20 w-20 rounded-full bg-cyan-200/40 blur-3xl md:h-28 md:w-28" />
-                                <div className="absolute bottom-[12%] left-[18%] h-24 w-24 rounded-full bg-teal-200/35 blur-3xl md:h-32 md:w-32" />
-                          
-                                <div className="absolute left-[14%] top-[22%] h-1.5 w-1.5 rounded-full bg-sky-400/80 shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
-                                <div className="absolute right-[18%] top-[28%] h-1.5 w-1.5 rounded-full bg-cyan-400/80 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
-                                <div className="absolute bottom-[24%] right-[28%] h-1.5 w-1.5 rounded-full bg-teal-400/80 shadow-[0_0_12px_rgba(45,212,191,0.8)]" />
-                                <div className="absolute bottom-[18%] left-[30%] h-1 w-1 rounded-full bg-sky-500/80 shadow-[0_0_10px_rgba(14,165,233,0.8)]" />
-                          
-                                <div className="relative z-10 flex h-full min-h-0 w-full items-center justify-center px-4 py-5 md:px-6 md:py-6 lg:px-8">
+
+
+
+                              <div
+                                className="relative flex h-full min-h-full w-full items-center justify-center overflow-hidden bg-no-repeat"
+                                style={{
+                                  backgroundImage:
+                                    "linear-gradient(90deg, rgba(15,23,42,0.34) 0%, rgba(15,23,42,0.27) 24%, rgba(15,23,42,0.15) 48%, rgba(15,23,42,0.07) 72%, rgba(15,23,42,0.02) 100%), url('/Hero.png')",
+                                  backgroundSize: "cover",
+                                  backgroundPosition: "70% 58%",
+                                }}
+                              >
+
+
+
+
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.08),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(45,212,191,0.06),transparent_24%)]" />
+
+
+                                <div className="relative z-20 flex h-full min-h-full items-center justify-center px-6 py-8 md:px-10 md:py-10">
                                   <div className="ml-[12%] flex max-w-2xl flex-col items-center text-center md:ml-[10%]">
                                     <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-[28px] bg-gradient-to-br from-sky-500/85 via-cyan-500/80 to-teal-500/75 shadow-[0_18px_45px_rgba(14,165,233,0.25)] ring-1 ring-white/20 backdrop-blur">
                                       <span className="text-4xl">📚</span>
                                     </div>
-                          
-                                    <h1 className="mx-auto max-w-2xl text-[26px] font-bold tracking-tight text-slate-900 md:text-[34px] md:leading-[1.08] lg:text-[40px]">
+                                
+                                    <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-white md:text-5xl md:leading-[1.08]">
                                       Welcome to ExamLift AI
                                     </h1>
-                          
-                                    <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 md:text-[15px] md:leading-7">
+                                
+                                    <p className="mt-4 max-w-xl text-base leading-8 text-sky-100/95">
                                       Your intelligent study companion that turns notes into knowledge.
                                     </p>
-                          
-                                    <div className="mx-auto mt-5 grid max-w-2xl grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                
+                                    <div className="mt-8 grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div className="rounded-[22px] border border-white/15 bg-white/10 px-5 py-5 text-left shadow-[0_12px_30px_rgba(15,23,42,0.16)] backdrop-blur">
-                                        <p className="text-sm font-semibold text-black">📝 Smart Summaries</p>
+                                        <p className="text-sm font-semibold text-white">📝 Smart Summaries</p>
                                       </div>
                                 
                                       <div className="rounded-[22px] border border-white/15 bg-white/10 px-5 py-5 text-left shadow-[0_12px_30px_rgba(15,23,42,0.16)] backdrop-blur">
-                                        <p className="text-sm font-semibold text-black">🧠 Key Concepts</p>
+                                        <p className="text-sm font-semibold text-white">🧠 Key Concepts</p>
                                       </div>
                                 
                                       <div className="rounded-[22px] border border-white/15 bg-white/10 px-5 py-5 text-left shadow-[0_12px_30px_rgba(15,23,42,0.16)] backdrop-blur">
-                                        <p className="text-sm font-semibold text-black">❓ Practice Questions</p>
+                                        <p className="text-sm font-semibold text-white">❓ Practice Questions</p>
                                       </div>
                                 
                                       <div className="rounded-[22px] border border-white/15 bg-white/10 px-5 py-5 text-left shadow-[0_12px_30px_rgba(15,23,42,0.16)] backdrop-blur">
-                                        <p className="text-sm font-semibold text-black">🎯 Mock Tests</p>
+                                        <p className="text-sm font-semibold text-white">🎯 Mock Tests</p>
                                       </div>
-
                                     </div>
+                                
+                                
+                                    <p className="mt-6 text-xs text-sky-100/85">
+
+                                    </p>
+                                    <p className="mt-6 text-xs text-sky-100/85">
+
+                                    </p>
+                                    <p className="mt-6 text-xs text-sky-100/85">
+
+                                    </p>
+                                    <p className="mt-6 text-xs text-sky-100/85">
+
+                                    </p>
+
+
                                   </div>
-                                </div>
+                                </div>                          
+
+
                               </div>
                             </div>
                           )}
-
 
                         </div>
                       )}
 
 
                       {activeId ? (
-                        <div className="h-full flex-1 min-h-0 overflow-y-auto rounded-[24px] bg-gradient-to-br from-slate-50 via-white to-sky-50/30 p-3 pr-2 ring-1 ring-slate-200/80 md:p-4">
+                        <div className="flex h-full flex-1 min-h-0 flex-col overflow-y-auto pr-2">
                           {library
                             .find((item) => item.id === activeId)
                             ?.chatHistory.map((msg, i) => (
-
-                     
+                      
                             <div
                               key={i}
-                              className={`mb-4 flex items-end gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
+                              className={`flex items-start gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                             >
                               {msg.role === "assistant" && (
-                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 via-cyan-600 to-teal-500 text-[11px] font-bold text-white shadow-[0_10px_24px_rgba(14,165,233,0.28)] ring-1 ring-white/20">
+                                <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
                                   AI
                                 </div>
                               )}
                       
-
-                              <div className="flex max-w-full flex-col md:max-w-[78%]">
+                              <div className="flex flex-col max-w-full md:max-w-[75%]">
                                 <div
-                                  className={`rounded-[24px] px-5 py-4 text-[15px] leading-7 shadow-[0_10px_28px_rgba(15,23,42,0.06)] ${
+                                  className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
                                     msg.role === "user"
-                                      ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white"
-                                      : "bg-white/95 text-slate-700 ring-1 ring-slate-200/90 backdrop-blur"
+                                      ? "bg-slate-900 text-white"
+                                      : "bg-white text-slate-700 ring-1 ring-slate-200"
                                   }`}
                                 >
 
 
-                                  <div className="prose prose-slate max-w-none prose-p:my-2 prose-p:text-[15px] prose-p:leading-7 prose-li:text-[15px] prose-li:leading-7 prose-strong:text-inherit prose-headings:text-inherit">
-                                    <ReactMarkdown>
-                                      {msg.role === "assistant" &&
-                                       i === (activeId
-                                         ? (library.find(item => item.id === activeId)?.chatHistory?.length ?? 0) - 1
-                                         : generalChat.length - 1) &&
-                                       isStreaming
-                                        ? streamingText
-                                        : msg.content}
-                                    </ReactMarkdown>
-                                  </div>
+                                  <ReactMarkdown>
+                                    {msg.role === "assistant" &&
+                                     i === (activeId
+                                       ? (library.find(item => item.id === activeId)?.chatHistory?.length ?? 0) - 1
+                                       : generalChat.length - 1) &&
+                                     isStreaming
+                                      ? streamingText
+                                      : msg.content}
+                                  </ReactMarkdown>
+
 
                       
                                   {/* ✅ KEEP YOUR ORIGINAL AUDIO LOGIC EXACTLY */}
@@ -1934,7 +1757,7 @@ export default function Home() {
                                         setChatAudio(null);
                                         setActiveAudioId(null);
                                       }}
-                                      className="mt-3 inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
+                                      className="mt-2 text-xs text-red-500 hover:underline"
                                     >
                                       ⏹ Stop
                                     </button>
@@ -1982,7 +1805,7 @@ export default function Home() {
                                           setIsAudioLoading(false);
                                         }
                                       }}
-                                      className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 transition hover:bg-sky-100"
+                                      className="mt-2 text-xs text-blue-500 hover:underline"
                                     >
                                       {isAudioLoading ? "⏳ Processing..." : "🔊 Listen"}
                                     </button>
@@ -2028,38 +1851,35 @@ export default function Home() {
                           {generalChat.map((msg, i) => (
                             <div
                               key={i}
-                              className={`mb-4 flex items-end gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
+                              className={`flex items-start gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                             >
                               {msg.role === "assistant" && (
-                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 via-cyan-600 to-teal-500 text-[11px] font-bold text-white shadow-[0_10px_24px_rgba(14,165,233,0.28)] ring-1 ring-white/20">
+                                <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
                                   AI
                                 </div>
                               )}
                         
-                              <div className="flex max-w-full flex-col md:max-w-[78%]">
+                              <div className="flex flex-col max-w-full md:max-w-[75%]">
                                 <div
-                                  className={`rounded-[24px] px-5 py-4 text-[15px] leading-7 shadow-[0_10px_28px_rgba(15,23,42,0.06)] ${
+                                  className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
                                     msg.role === "user"
-                                      ? "bg-gradient-to-r from-slate-900 to-slate-800 text-white"
-                                      : "bg-white/95 text-slate-700 ring-1 ring-slate-200/90 backdrop-blur"
+                                      ? "bg-slate-900 text-white"
+                                      : "bg-white text-slate-700 ring-1 ring-slate-200"
                                   }`}
                                 >
+
+
                                   //<ReactMarkdown>{msg.content}</ReactMarkdown>
 
-
-                                  <div className="prose prose-slate max-w-none prose-p:my-2 prose-p:text-[15px] prose-p:leading-7 prose-li:text-[15px] prose-li:leading-7 prose-strong:text-inherit prose-headings:text-inherit">
-                                    <ReactMarkdown>
-                                      {msg.role === "assistant" &&
-                                       i === (activeId
-                                         ? (library.find(item => item.id === activeId)?.chatHistory?.length ?? 0) - 1
-                                         : generalChat.length - 1) &&
-                                       isStreaming
-                                        ? streamingText
-                                        : msg.content}
-                                    </ReactMarkdown>
-                                  </div>
-
-
+                                  <ReactMarkdown>
+                                    {msg.role === "assistant" &&
+                                     i === (activeId
+                                       ? (library.find(item => item.id === activeId)?.chatHistory?.length ?? 0) - 1
+                                       : generalChat.length - 1) &&
+                                     isStreaming
+                                      ? streamingText
+                                      : msg.content}
+                                  </ReactMarkdown>
 
                         
                                   {/* ✅ SAME AUDIO / STOP / PROCESSING — UNCHANGED */}
@@ -2074,7 +1894,7 @@ export default function Home() {
                                           setChatAudio(null);
                                           setActiveAudioId(null);
                                         }}
-                                        className="mt-3 inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
+                                        className="mt-2 text-xs text-red-500 hover:underline"
                                       >
                                         ⏹ Stop
                                       </button>
@@ -2121,7 +1941,7 @@ export default function Home() {
                                             setIsAudioLoading(false);
                                           }
                                         }}
-                                        className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 transition hover:bg-sky-100"
+                                        className="mt-2 text-xs text-blue-500 hover:underline"
                                       >
                                         {isAudioLoading ? "⏳ Processing..." : "🔊 Listen"}
                                       </button>
@@ -2141,7 +1961,7 @@ export default function Home() {
                           {/* ✅ STREAMING MESSAGE (KEEP YOUR EXISTING STYLE) */}
                           {streamingText && (
                             <div className="flex items-start gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 via-cyan-600 to-teal-500 text-[11px] font-bold text-white shadow-[0_10px_24px_rgba(14,165,233,0.28)] ring-1 ring-white/20">
+                              <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
                                 AI
                               </div>
                         
@@ -2159,7 +1979,7 @@ export default function Home() {
                                       setChatAudio(null);
                                       setActiveAudioId(null);
                                     }}
-                                    className="mt-3 inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
+                                    className="mt-2 text-xs text-red-500 hover:underline"
                                   >
                                     ⏹ Stop
                                   </button>
@@ -2205,7 +2025,7 @@ export default function Home() {
                                         setIsAudioLoading(false);
                                       }
                                     }}
-                                    className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 transition hover:bg-sky-100"
+                                    className="mt-2 text-xs text-blue-500 hover:underline"
                                   >
                                     {isAudioLoading ? "⏳ Processing..." : "🔊 Listen"}
                                   </button>
@@ -2224,7 +2044,7 @@ export default function Home() {
                 {/* INPUT AREA - Only in Chat Tab (your original behavior) */}
 
                 {(activeTab === "chat" || activeTab === "practice") && (
-                  <div className="mt-2 shrink-0 sticky bottom-0 z-10 rounded-[24px] border border-slate-200 bg-white px-2 py-1 shadow-[0_10px_20px_rgba(15,23,42,0.08)]">
+                  <div className="mt-4 shrink-0 sticky bottom-0 z-10 rounded-[32px] border border-slate-200 bg-white px-5 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
                     <input
                       type="file"
                       id="fileUpload"
@@ -2241,7 +2061,7 @@ export default function Home() {
                       onChange={handleCameraUpload}
                     />
                 
-                    <div className="rounded-[20px] border border-slate-200 bg-white px-3 py-2">
+                    <div className="rounded-[32px] border border-slate-200 bg-white px-5 py-4">
                       <textarea
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
@@ -2253,7 +2073,7 @@ export default function Home() {
                           }
                         }}
                         rows={2}
-                        className="min-h-[44px] w-full resize-none border-0 bg-transparent px-0 py-0 text-[15px] leading-6 text-slate-800 outline-none placeholder:text-slate-400 disabled:text-slate-400 md:min-h-[60px]"
+                        className="min-h-[72px] w-full resize-none border-0 bg-transparent px-0 py-0 text-[16px] leading-6 text-slate-800 outline-none placeholder:text-slate-400"
 
 
                         placeholder={

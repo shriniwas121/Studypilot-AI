@@ -755,6 +755,26 @@ Text:
 
     return {"result": response.choices[0].message.content}
 
+def validate_mock_blocks(raw_text: str) -> str:
+    blocks = re.split(r"\n\s*\n", raw_text.strip())
+    valid_blocks = []
+
+    for block in blocks:
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if len(lines) < 7:
+            continue
+
+        has_question = any(line.lower().startswith("question:") for line in lines)
+        option_lines = [line for line in lines if re.match(r"^[A-D]\)", line)]
+        has_answer = any(line.lower().startswith("correctoptiontext:") for line in lines)
+        has_explanation = any(line.lower().startswith("explanation:") for line in lines)
+
+        if has_question and len(option_lines) == 4 and has_answer and has_explanation:
+            valid_blocks.append("\n".join(lines))
+
+    return "\n\n".join(valid_blocks)
+
+
 @app.post("/mock-test")
 async def mock_test(text: str = Form(...)):
     client = get_client()
@@ -762,13 +782,12 @@ async def mock_test(text: str = Form(...)):
     response = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         messages=[
-
             {
                 "role": "system",
                 "content": """
 You are a strict exam generator.
 
-You MUST follow this EXACT format.
+You MUST follow this EXACT format for EVERY question.
 
 FORMAT:
 
@@ -777,60 +796,75 @@ A) <option>
 B) <option>
 C) <option>
 D) <option>
-Answer: <A/B/C/D>
+CorrectOptionText: <exact correct option text>
 Explanation: <short explanation>
 
-Rules:
+NON-NEGOTIABLE RULES:
 - EXACTLY 4 options only
-- NO markdown, NO bullets, NO numbering
+- NO markdown
+- NO bullets
+- NO numbering
 - Each question separated by ONE blank line
+- CorrectOptionText MUST exactly match one and only one of the 4 option texts
+- The Explanation MUST support that same correct option text
+- Never output a CorrectOptionText that does not appear exactly in A/B/C/D
+- Never output an Explanation that conflicts with CorrectOptionText
+- For maths, logic, science, or factual questions:
+  - solve/check the answer first
+  - then build 4 options
+  - then set CorrectOptionText to the exact correct option text
+  - then write an explanation consistent with that correct option
+- Make wrong options plausible, but clearly wrong
+- Do not repeat the same option values in different letters for the same question
+- Do not use 'all of the above' or 'none of the above'
+
+FINAL SELF-CHECK BEFORE OUTPUT EACH QUESTION:
+1. Identify the correct option text
+2. Confirm it appears under only one letter A/B/C/D
+3. Confirm CorrectOptionText exactly matches that option text
+4. Confirm the Explanation supports that same option text
+5. If any mismatch exists, rewrite the question before outputting it
 
 Generate questions based on document length:
+- Small document -> 8 to 12 questions
+- Medium document -> 15 to 20 questions
+- Large document -> 20 to 25 questions
 
-- Small document → 8–12 questions
-- Medium document → 15–25 questions
-- Large document → 25–40 questions
-
-Cover ALL important topics.
-
+Prefer quality and correctness over quantity.
 """
             },
-
-
             {
                 "role": "user",
                 "content": f"""
-            Generate a mock test from this document.
-            
-            Rules:
-            - About 50% of questions must come directly from the document
-            - About 50% of questions may be external, but they MUST stay closely related to the same topic
-            - External questions should feel like natural extension questions a teacher might ask on the same lesson
-            - Do NOT generate unrelated general knowledge questions
-            - Keep all questions relevant to the uploaded document topic
-            - Mix easy, medium, and hard questions
-            
-            Text:
-            {text[:12000]}
-            """
+Generate a mock test from this document.
+
+Rules:
+- About 70% of questions must come directly from the document
+- Up to 30% of questions may be external, but they MUST stay closely related to the same topic
+- External questions should feel like natural extension questions a teacher might ask on the same lesson
+- Do NOT generate unrelated general knowledge questions
+- Keep all questions relevant to the uploaded document topic
+- Mix easy, medium, and hard questions
+- For calculation questions, verify the result before setting CorrectOptionText
+- If unsure, prefer document-grounded questions over external ones
+
+Text:
+{text[:12000]}
+"""
             }
         ],
-        temperature=0.2,   # 🔥 LOWER = MORE STRICT
+        temperature=0.0,
     )
 
     raw = response.choices[0].message.content or ""
 
-    # 🔥 CLEAN OUTPUT
     cleaned = re.sub(r"\*\*|###|##|#", "", raw)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = validate_mock_blocks(cleaned)
 
-    # 🔥 DEBUG (VERY IMPORTANT)
-    print("MOCK OUTPUT:\n", cleaned[:1000])
+    print("MOCK OUTPUT:\n", cleaned[:1500])
 
     return {"result": cleaned}
-
-
-
 
 @app.post("/vision-analyze")
 async def vision_analyze(file: UploadFile = File(...)):
