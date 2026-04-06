@@ -11,3 +11,4 @@ azure-core
 azure-cognitiveservices-speech
 youtube-transcript-api
 python-docx
+lucide-react

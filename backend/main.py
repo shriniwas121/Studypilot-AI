@@ -430,12 +430,13 @@ def get_voice_by_language(language: str):
     mapping = {
         "english": "en-AU-NatashaNeural",
         "hindi": "hi-IN-SwaraNeural",
-        "marathi": "hi-IN-SwaraNeural",   # fallback
-        "gujarati": "hi-IN-SwaraNeural",  # fallback
-        "telugu": "te-IN-ShrutiNeural",
-        "punjabi": "hi-IN-SwaraNeural",   # fallback
         "french": "fr-FR-DeniseNeural",
         "german": "de-DE-KatjaNeural",
+        "spanish": "es-ES-ElviraNeural",
+        "arabic": "ar-SA-ZariyahNeural",
+        "japanese": "ja-JP-NanamiNeural",
+        "chinese": "zh-CN-XiaoxiaoNeural",
+
     }
     return mapping.get(language.lower(), "en-AU-NatashaNeural")
 
@@ -512,12 +513,12 @@ async def translate_and_speak(
         lang_map = {
             "english": "en",
             "hindi": "hi",
-            "marathi": "mr",
-            "gujarati": "gu",
-            "telugu": "te",
-            "punjabi": "pa",
             "french": "fr",
             "german": "de",
+            "spanish": "es",
+            "arabic": "ar",
+            "japanese": "ja",
+            "chinese": "zh-Hans",
         }
 
 
@@ -618,9 +619,12 @@ async def translate(
         lang_map = {
             "english": "en",
             "hindi": "hi",
-            "telugu": "te",
             "french": "fr",
             "german": "de",
+            "spanish": "es",
+            "arabic": "ar",
+            "japanese": "ja",
+            "chinese": "zh-Hans",
         }
 
         target_lang = lang_map.get(language.lower(), "en")
@@ -756,28 +760,140 @@ Text:
     return {"result": response.choices[0].message.content}
 
 def validate_mock_blocks(raw_text: str) -> str:
-    blocks = re.split(r"\n\s*\n", raw_text.strip())
+    raw_text = raw_text.strip()
+    if not raw_text:
+        return ""
+
+    # Normalize markdown/noisy formatting first
+    cleaned = re.sub(r"\*\*|###|##|#", "", raw_text)
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+
+    # Normalize option prefixes like A. -> A)
+    cleaned = re.sub(r"^([A-D])\.\s+", r"\1) ", cleaned, flags=re.MULTILINE)
+
+    # Split by each Question: block instead of blank lines
+    blocks = re.split(r"(?=^Question:\s*)", cleaned, flags=re.MULTILINE)
+
     valid_blocks = []
 
     for block in blocks:
-        lines = [line.strip() for line in block.splitlines() if line.strip()]
-        if len(lines) < 7:
+        block = block.strip()
+        if not block:
             continue
 
-        has_question = any(line.lower().startswith("question:") for line in lines)
-        option_lines = [line for line in lines if re.match(r"^[A-D]\)", line)]
-        has_answer = any(line.lower().startswith("correctoptiontext:") for line in lines)
-        has_explanation = any(line.lower().startswith("explanation:") for line in lines)
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not lines:
+            continue
 
-        if has_question and len(option_lines) == 4 and has_answer and has_explanation:
-            valid_blocks.append("\n".join(lines))
+        question_lines = [line for line in lines if line.lower().startswith("question:")]
+        option_lines = [line for line in lines if re.match(r"^[A-D]\)\s+", line)]
+        answer_lines = [line for line in lines if line.lower().startswith("correctoptiontext:")]
+        explanation_lines = [line for line in lines if line.lower().startswith("explanation:")]
+
+        if len(question_lines) != 1:
+            continue
+        if len(option_lines) != 4:
+            continue
+        if len(answer_lines) != 1:
+            continue
+        if len(explanation_lines) != 1:
+            continue
+
+        correct_option_text = answer_lines[0].split(":", 1)[1].strip()
+        option_texts = [re.sub(r"^[A-D]\)\s+", "", line).strip() for line in option_lines]
+
+        if correct_option_text not in option_texts:
+            continue
+
+        valid_blocks.append("\n".join([
+            question_lines[0],
+            *option_lines,
+            answer_lines[0],
+            explanation_lines[0],
+        ]))
 
     return "\n\n".join(valid_blocks)
 
 
 @app.post("/mock-test")
-async def mock_test(text: str = Form(...)):
+async def mock_test(
+    text: str = Form(...),
+    difficulty: str = Form("medium")
+):
     client = get_client()
+
+    difficulty = (difficulty or "medium").strip().lower()
+    if difficulty not in ["easy", "medium", "hard"]:
+        difficulty = "medium"
+
+    difficulty_rules = {
+        "easy": """
+DIFFICULTY LEVEL: EASY
+
+QUESTION STYLE RULES:
+- Use very simple wording
+- Focus on definition, identification, direct recall, and one-step understanding
+- Avoid tricky distractors
+- Avoid multi-step reasoning unless extremely simple
+- For maths/calculations, use only one-step calculations
+- Keep options clearly distinguishable
+- Keep most questions directly answerable from the document wording
+
+REQUIRED MIX:
+- 70% direct recall / definition
+- 20% simple understanding
+- 10% very light application
+
+DO NOT:
+- Do not use inference-heavy questions
+- Do not combine multiple concepts in one question
+- Do not make distractors too close to the correct answer
+""",
+        "medium": """
+DIFFICULTY LEVEL: MEDIUM
+
+QUESTION STYLE RULES:
+- Use standard classroom test wording
+- Mix recall, understanding, and application
+- Include moderate reasoning and concept connection
+- For maths/calculations, allow one-step and some two-step problems
+- Distractors should be plausible
+- Questions should often require understanding, not only memory
+
+REQUIRED MIX:
+- 30% direct recall / definition
+- 40% understanding / concept explanation
+- 30% application / moderate reasoning
+
+DO NOT:
+- Do not make all questions direct copy-from-document
+- Do not make all questions highly tricky
+- Do not use very advanced inference in most questions
+""",
+        "hard": """
+DIFFICULTY LEVEL: HARD
+
+QUESTION STYLE RULES:
+- Use deeper reasoning, scenario-based application, comparison, inference, and multi-step thinking
+- Questions should test whether the student can apply the topic, not just recall it
+- For maths/calculations, prefer multi-step problems where appropriate
+- Distractors should be close, believable, and based on common mistakes
+- Include questions that combine two related ideas from the document
+- Include teacher-style extension questions that are still tightly related to the document topic
+
+REQUIRED MIX:
+- 15% direct recall / definition
+- 35% understanding / comparison
+- 50% application / inference / multi-step reasoning
+
+DO NOT:
+- Do not make the test mostly recall
+- Do not make options obviously easy to eliminate
+- Do not generate unrelated outside-topic questions
+"""
+    }
+
+    difficulty_instruction = difficulty_rules[difficulty]
 
     response = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
@@ -805,6 +921,8 @@ NON-NEGOTIABLE RULES:
 - NO bullets
 - NO numbering
 - Each question separated by ONE blank line
+- Use exactly A) B) C) D) for options
+- Do not use A. B. C. D.
 - CorrectOptionText MUST exactly match one and only one of the 4 option texts
 - The Explanation MUST support that same correct option text
 - Never output a CorrectOptionText that does not appear exactly in A/B/C/D
@@ -838,13 +956,18 @@ Prefer quality and correctness over quantity.
                 "content": f"""
 Generate a mock test from this document.
 
-Rules:
-- About 70% of questions must come directly from the document
-- Up to 30% of questions may be external, but they MUST stay closely related to the same topic
-- External questions should feel like natural extension questions a teacher might ask on the same lesson
+Selected difficulty:
+{difficulty.upper()}
+
+Difficulty rules:
+{difficulty_instruction}
+
+Global rules:
 - Do NOT generate unrelated general knowledge questions
 - Keep all questions relevant to the uploaded document topic
-- Mix easy, medium, and hard questions
+- Match the selected difficulty consistently across the full test
+- The difference between easy, medium, and hard must be clearly visible
+- For general documents, generate topic-based comprehension, definition, understanding, application, and inference questions
 - For calculation questions, verify the result before setting CorrectOptionText
 - If unsure, prefer document-grounded questions over external ones
 
@@ -858,13 +981,19 @@ Text:
 
     raw = response.choices[0].message.content or ""
 
-    cleaned = re.sub(r"\*\*|###|##|#", "", raw)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    cleaned = validate_mock_blocks(cleaned)
+    cleaned = validate_mock_blocks(raw)
 
-    print("MOCK OUTPUT:\n", cleaned[:1500])
+    # Fallback: if strict validation removes everything, return normalized raw blocks
+    if not cleaned.strip():
+        normalized = re.sub(r"\*\*|###|##|#", "", raw)
+        normalized = normalized.replace("\r\n", "\n").replace("\r", "\n")
+        normalized = re.sub(r"^([A-D])\.\s+", r"\1) ", normalized, flags=re.MULTILINE)
+        cleaned = normalized.strip()
+
+    print("MOCK OUTPUT:\n", cleaned[:2000])
 
     return {"result": cleaned}
+
 
 @app.post("/vision-analyze")
 async def vision_analyze(file: UploadFile = File(...)):
