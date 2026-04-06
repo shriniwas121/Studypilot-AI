@@ -28,7 +28,7 @@ except Exception:
 load_dotenv()
 
 
-app = FastAPI(title="DocPilot AI Backend")
+app = FastAPI(title="Examlift AI Backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -255,7 +255,7 @@ def extract_text_from_image(file_bytes: bytes) -> str:
 
 @app.get("/")
 def root():
-    return {"message": "DocPilot AI backend is running"}
+    return {"message": "Examlift AI backend is running"}
 
 
 @app.post("/summarize")
