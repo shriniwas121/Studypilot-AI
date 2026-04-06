@@ -99,8 +99,8 @@ export default function Home() {
   // RESTORE LIBRARY ON PAGE LOAD
   useEffect(() => {
     try {
-      const savedLibrary = localStorage.getItem("docpilot_library");
-      const savedActiveId = localStorage.getItem("docpilot_active_id");
+      const savedLibrary = localStorage.getItem("examlift_library");
+      const savedActiveId = localStorage.getItem("examlift_active_id");
 
       if (!savedLibrary) return;
 
@@ -126,7 +126,7 @@ export default function Home() {
       setCurrentQ(0);
       setChatLanguage("english");
       setTabLanguage("english");
-      localStorage.removeItem("docpilot_active_id");
+      localStorage.removeItem("examlift_active_id");
 
     } catch (err) {
       console.error("Restore failed", err);
@@ -135,12 +135,12 @@ export default function Home() {
 
   // SAVE LIBRARY WHEN UPDATED
   useEffect(() => {
-    localStorage.setItem("docpilot_library", JSON.stringify(library));
+    localStorage.setItem("examlift_library", JSON.stringify(library));
   }, [library]);
 
   useEffect(() => {
     if (activeId) {
-      localStorage.setItem("docpilot_active_id", activeId);
+      localStorage.setItem("examlift_active_id", activeId);
     }
   }, [activeId]);
 
